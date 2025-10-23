@@ -1,0 +1,26 @@
+# Dependências Python para o Gerador de Grade Batimétrica POM
+# =============================================================
+# 
+# Instale todas as dependências com:
+#   pip install -r requirements.txt
+#
+# Ou com conda:
+#   conda install --file requirements.txt
+#
+
+# Manipulação de arrays numéricos
+numpy>=1.20.0
+
+# Interpolação e processamento científico
+scipy>=1.7.0
+
+# Leitura e manipulação de dados NetCDF
+xarray>=0.19.0
+netCDF4>=1.5.0
+
+# Visualização (opcional mas recomendado)
+matplotlib>=3.3.0
+
+# Utilidades adicionais (opcional)
+# pandas>=1.3.0  # Para análise de dados adicional se necessário
+# cartopy>=0.20.0  # Para mapas mais avançados (opcional)
