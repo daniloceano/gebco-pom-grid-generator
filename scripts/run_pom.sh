@@ -61,10 +61,58 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Executar script Python com todos os argumentos
-echo -e "${GREEN}✓ Executando: python $@${NC}"
+# Resolver caminho do script Python (se o primeiro argumento for um script relativo)
+SCRIPT_ARG="$1"
+shift || true
+
+# Se SCRIPT_ARG for um caminho absoluto existente, use-o
+if [ -z "$SCRIPT_ARG" ]; then
+    echo -e "${RED}✗ Erro: Nenhum script especificado${NC}"
+    conda deactivate
+    exit 1
+fi
+
+if [[ "$SCRIPT_ARG" = /* ]] && [ -f "$SCRIPT_ARG" ]; then
+    SCRIPT_PATH="$SCRIPT_ARG"
+else
+    # Procurar o script em locais comuns: cwd do projeto (POM_ROOT), scripts/, tests/, src/
+    # Determinar PROJECT_ROOT (pode ser exportado)
+    if [ -n "$POM_ROOT" ]; then
+        PR_ROOT="$POM_ROOT"
+    else
+        # assumir que o wrapper está em scripts/ dentro do projeto
+        PR_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    fi
+
+    CANDIDATES=("$PR_ROOT/$SCRIPT_ARG" 
+                "$PR_ROOT/scripts/$SCRIPT_ARG" 
+                "$PR_ROOT/tests/$SCRIPT_ARG" 
+                "$PR_ROOT/src/$SCRIPT_ARG" 
+                "$PR_ROOT/$SCRIPT_ARG.py"
+                )
+
+    SCRIPT_PATH=""
+    for c in "${CANDIDATES[@]}"; do
+        if [ -f "$c" ]; then
+            SCRIPT_PATH="$c"
+            break
+        fi
+    done
+fi
+
+if [ -z "$SCRIPT_PATH" ]; then
+    echo -e "${RED}✗ Erro: script '$SCRIPT_ARG' não encontrado em locais esperados.${NC}"
+    echo "  Procurado em: $PR_ROOT, $PR_ROOT/scripts, $PR_ROOT/tests, $PR_ROOT/src"
+    conda deactivate
+    exit 2
+fi
+
+echo -e "${GREEN}✓ Executando: python $SCRIPT_PATH $@${NC}"
 echo ""
-python "$@"
+# Garantir que o diretório src/ esteja no PYTHONPATH para imports locais
+export PYTHONPATH="$PR_ROOT:$PR_ROOT/src:${PYTHONPATH:-}"
+
+python "$SCRIPT_PATH" "$@"
 
 # Capturar código de saída
 exit_code=$?

@@ -14,6 +14,13 @@ Uso:
 import sys
 import os
 
+# Determinar o diretório raiz do projeto (assumindo que tests/ está no root)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+# Adicionar o projeto root ao PYTHONPATH para garantir imports
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 
 def test_imports():
     """
@@ -80,7 +87,7 @@ def test_gebco_file():
     print(" TESTE 2: Verificação do Arquivo GEBCO")
     print("="*70)
     
-    gebco_file = "gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
+    gebco_file = os.path.join(PROJECT_ROOT, "gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc")
     
     if os.path.exists(gebco_file):
         size_mb = os.path.getsize(gebco_file) / (1024**2)
@@ -137,7 +144,7 @@ def test_small_grid():
     print(" TESTE 4: Geração de Grade de Teste")
     print("="*70)
     
-    gebco_file = "gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
+    gebco_file = os.path.join(PROJECT_ROOT, "gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc")
     
     if not os.path.exists(gebco_file):
         print("\n⚠ Pulando teste (arquivo GEBCO não encontrado)")
@@ -170,7 +177,7 @@ def test_small_grid():
             return False
         
         # Exportar para arquivo temporário
-        test_file = "test_grid.asc"
+        test_file = os.path.join(PROJECT_ROOT, "test_grid.asc")
         print(f"  Exportando para {test_file}...")
         if not generator.export_to_ascii(test_file):
             print("✗ Falha ao exportar")

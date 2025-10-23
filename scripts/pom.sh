@@ -3,7 +3,8 @@
 # Script de Comandos Comuns - Projeto POM
 # ==============================================================================
 #
-# Este script fornece atalhos para comandos frequentemente usados.
+# Este script fornece atalhos para comandos frequentemente usados no projeto
+# de geração de grades batimétricas POM.
 #
 # Uso:
 #   ./pom.sh <comando> [argumentos]
@@ -15,6 +16,15 @@
 #   quick      - Executar gerador rápido
 #   clean      - Limpar arquivos temporários
 #   help       - Mostrar esta ajuda
+#
+# Configuração (opcional):
+#   Você pode definir a variável de ambiente POM_ROOT para especificar o
+#   diretório raiz do projeto. Se não definida, o script tentará detectar
+#   automaticamente assumindo que está em <projeto>/scripts/pom.sh.
+#
+#   Exemplo:
+#     export POM_ROOT=/path/to/gebco-pom-grid-generator
+#     ./pom.sh test
 #
 # ==============================================================================
 
@@ -33,6 +43,51 @@ show_banner() {
     echo "======================================================================"
     echo -e "${NC}"
 }
+
+# === Inicialização de caminhos =================================================
+# Determina o diretório deste script e o diretório raiz do projeto. Isso torna
+# as chamadas a outros scripts robustas mesmo quando o usuário executa este
+# script a partir de diferentes diretórios.
+#
+# Você pode sobrescrever o diretório do projeto exportando a variável
+# de ambiente POM_ROOT antes de chamar este script.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Se POM_ROOT estiver definido, use-o; senão, assuma que o projeto root é o pai
+# do diretório de scripts (../)
+if [ -n "$POM_ROOT" ]; then
+    PROJECT_ROOT="$POM_ROOT"
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+
+# Caminhos absolutos para scripts usados pelo pom.sh
+# Procurar por run_pom.sh e setup_environment.sh em locais comuns e usar o primeiro
+# encontrado (PROJECT_ROOT, SCRIPT_DIR). Isso permite executar o script tanto
+# a partir da raiz do projeto quanto da pasta scripts/.
+if [ -f "$PROJECT_ROOT/run_pom.sh" ]; then
+    RUN_WRAPPER="$PROJECT_ROOT/run_pom.sh"
+elif [ -f "$SCRIPT_DIR/run_pom.sh" ]; then
+    RUN_WRAPPER="$SCRIPT_DIR/run_pom.sh"
+else
+    RUN_WRAPPER=""
+fi
+
+if [ -f "$PROJECT_ROOT/setup_environment.sh" ]; then
+    SETUP_SCRIPT="$PROJECT_ROOT/setup_environment.sh"
+elif [ -f "$SCRIPT_DIR/setup_environment.sh" ]; then
+    SETUP_SCRIPT="$SCRIPT_DIR/setup_environment.sh"
+else
+    SETUP_SCRIPT=""
+fi
+
+# Avisos se não encontrados
+if [ -z "$RUN_WRAPPER" ]; then
+    echo "[AVISO] run_pom.sh não encontrado em: $PROJECT_ROOT ou $SCRIPT_DIR"
+fi
+if [ -z "$SETUP_SCRIPT" ]; then
+    echo "[AVISO] setup_environment.sh não encontrado em: $PROJECT_ROOT ou $SCRIPT_DIR"
+fi
+
 
 # Ajuda
 show_help() {
@@ -78,7 +133,7 @@ cmd_setup() {
     show_banner
     echo -e "${GREEN}Configurando ambiente conda...${NC}"
     echo ""
-    ./setup_environment.sh
+    "$SETUP_SCRIPT"
 }
 
 # Test
@@ -86,7 +141,7 @@ cmd_test() {
     show_banner
     echo -e "${GREEN}Executando testes de validação...${NC}"
     echo ""
-    ./run_pom.sh test_bathymetry_generator.py
+    "$RUN_WRAPPER" test_bathymetry_generator.py
 }
 
 # Run
@@ -98,7 +153,7 @@ cmd_run() {
     echo ""
     read -p "Continuar? (s/N): " resposta
     if [[ $resposta =~ ^[Ss]$ ]]; then
-        ./run_pom.sh create_pom_bathymetry_grid.py
+        "$RUN_WRAPPER" create_pom_bathymetry_grid.py
     else
         echo "Cancelado."
     fi
@@ -113,9 +168,9 @@ cmd_quick() {
     if [ $# -eq 0 ]; then
         echo -e "${YELLOW}Nenhum argumento fornecido. Mostrando ajuda:${NC}"
         echo ""
-        ./run_pom.sh quick_generate_grid.py --help
+        "$RUN_WRAPPER" quick_generate_grid.py --help
     else
-        ./run_pom.sh quick_generate_grid.py "$@"
+        "$RUN_WRAPPER" quick_generate_grid.py "$@"
     fi
 }
 
@@ -159,8 +214,9 @@ cmd_status() {
     
     # Verificar arquivo GEBCO
     echo -n "Arquivo GEBCO: "
-    if [ -f "gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc" ]; then
-        size=$(du -h "gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc" | cut -f1)
+    GEBCO_PATH="$PROJECT_ROOT/gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
+    if [ -f "$GEBCO_PATH" ]; then
+        size=$(du -h "$GEBCO_PATH" | cut -f1)
         echo -e "${GREEN}✓ Presente (${size})${NC}"
     else
         echo -e "${RED}✗ Não encontrado${NC}"
@@ -168,17 +224,18 @@ cmd_status() {
     
     # Verificar scripts
     echo -n "Scripts executáveis: "
-    if [ -x "setup_environment.sh" ] && [ -x "run_pom.sh" ]; then
+    if [ -x "$SETUP_SCRIPT" ] && [ -x "$RUN_WRAPPER" ]; then
         echo -e "${GREEN}✓ Prontos${NC}"
     else
         echo -e "${YELLOW}⚠ Executando chmod...${NC}"
-        chmod +x setup_environment.sh run_pom.sh pom.sh
+        chmod +x "$SETUP_SCRIPT" "$RUN_WRAPPER" "$SCRIPT_DIR/pom.sh"
         echo -e "${GREEN}✓ Corrigido${NC}"
     fi
     
     echo ""
     echo -e "${BLUE}Arquivos de saída existentes:${NC}"
-    if ls *.asc *.png 2>/dev/null | grep -v test_grid; then
+    OUTPUT_DIR="$PROJECT_ROOT/output"
+    if [ -d "$OUTPUT_DIR" ] && (ls "$OUTPUT_DIR"/*.asc "$OUTPUT_DIR"/*.png 2>/dev/null | grep -v test_grid); then
         echo ""
     else
         echo "  (nenhum)"
