@@ -153,11 +153,11 @@ cmd_run() {
     show_banner
     echo -e "${GREEN}Executando gerador principal...${NC}"
     echo ""
-    echo -e "${YELLOW}Nota: Certifique-se de ter editado as configurações em create_pom_bathymetry_grid.py${NC}"
+    echo -e "${YELLOW}Nota: Certifique-se de ter editado as configurações em generate_grid.py${NC}"
     echo ""
     read -p "Continuar? (s/N): " resposta
     if [[ $resposta =~ ^[Ss]$ ]]; then
-        "$RUN_WRAPPER" create_pom_bathymetry_grid.py
+        "$RUN_WRAPPER" generate_grid.py
     else
         echo "Cancelado."
     fi
