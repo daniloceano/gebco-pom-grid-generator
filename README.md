@@ -222,15 +222,6 @@ conda activate pom
 python tests/test_bathymetry_generator.py
 ```
 
-## 📝 Citação
-
-Se utilizar este código em publicações científicas, por favor cite:
-
-**Dados GEBCO:**
-```
-GEBCO Compilation Group (2025) GEBCO 2025 Grid
-```
-
 ## 🤝 Contribuindo
 
 Contribuições são bem-vindas! Por favor:
