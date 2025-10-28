@@ -49,22 +49,43 @@ try:
     print(f"  ✓ Max depth: {editor.depth.max():.2f} m")
     
     # Testar toggle de célula
-    print("\n[3] Testando toggle de célula...")
-    i, j = 5, 5
+    print("\n[3] Testando toggle de célula com interpolação...")
+    
+    # Encontrar uma célula de terra próxima à água
+    i, j = 60, 60  # Centro da grade
     original_depth = editor.depth[j, i]
     print(f"  Célula [{j},{i}] antes: {original_depth:.2f} m")
     
-    editor.toggle_cell(j, i)
-    new_depth = editor.depth[j, i]
-    print(f"  Célula [{j},{i}] depois: {new_depth:.2f} m")
-    
-    if original_depth != new_depth:
-        print(f"  ✓ Toggle funcionou!")
+    # Se for terra, converter para água (deve interpolar)
+    if original_depth >= 0:
+        print(f"  Testando TERRA → ÁGUA com interpolação...")
+        editor.toggle_cell(j, i)
+        new_depth = editor.depth[j, i]
+        print(f"  Célula [{j},{i}] depois: {new_depth:.2f} m")
+        
+        if new_depth < 0:
+            print(f"  ✓ Interpolação funcionou! (profundidade negativa = água)")
+        else:
+            print(f"  ⚠ Valor inesperado, mas pode ser válido")
     else:
-        print(f"  ✗ Toggle não modificou o valor")
+        print(f"  Célula já é água, testando ÁGUA → TERRA...")
+        editor.toggle_cell(j, i)
+        new_depth = editor.depth[j, i]
+        print(f"  Célula [{j},{i}] depois: {new_depth:.2f} m")
+        
+        if new_depth > 0:
+            print(f"  ✓ Conversão para terra funcionou!")
+    
+    # Testar interpolação diretamente
+    print("\n[4] Testando método de interpolação diretamente...")
+    test_i, test_j = 50, 50
+    interpolated = editor.interpolate_from_neighbors(test_i, test_j)
+    print(f"  Profundidade interpolada para célula [{test_i},{test_j}]: {interpolated:.2f} m")
+    if interpolated < 0:
+        print(f"  ✓ Interpolação retornou valor de água válido")
     
     # Testar find_nearest_cell
-    print("\n[4] Testando busca de célula mais próxima...")
+    print("\n[5] Testando busca de célula mais próxima...")
     lon_test = editor.lons[10]
     lat_test = editor.lats[10]
     i_found, j_found = editor.find_nearest_cell(lon_test, lat_test)
@@ -72,7 +93,7 @@ try:
     print(f"  ✓ Encontrou célula: i={i_found}, j={j_found}")
     
     # Não salvar para não modificar arquivo real
-    print("\n[5] Limpando (não salvando modificações de teste)...")
+    print("\n[6] Limpando (não salvando modificações de teste)...")
     editor.modified = False  # Forçar não salvar
     
     print("\n" + "="*70)

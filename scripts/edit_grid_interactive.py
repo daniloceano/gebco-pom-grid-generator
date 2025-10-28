@@ -291,33 +291,100 @@ class InteractiveBathymetryEditor:
         j = np.argmin(np.abs(self.lons - lon))
         return i, j
     
+    def interpolate_from_neighbors(self, i, j, max_radius=5):
+        """
+        Interpola profundidade das células vizinhas válidas (água).
+        
+        Usa interpolação linear baseada na distância inversa (IDW - Inverse Distance Weighting).
+        
+        NOTA: No formato POM, profundidades positivas representam oceano!
+        
+        Parameters:
+            i, j (int): Índices da célula
+            max_radius (int): Raio máximo de busca de vizinhos
+        
+        Returns:
+            float: Profundidade interpolada, ou valor padrão se não houver vizinhos
+        """
+        nrows, ncols = self.depth.shape
+        
+        # Coletar células vizinhas válidas (água = profundidade > 0)
+        neighbors = []
+        
+        for radius in range(1, max_radius + 1):
+            for di in range(-radius, radius + 1):
+                for dj in range(-radius, radius + 1):
+                    # Pular a célula central
+                    if di == 0 and dj == 0:
+                        continue
+                    
+                    ni, nj = i + di, j + dj
+                    
+                    # Verificar limites
+                    if 0 <= ni < nrows and 0 <= nj < ncols:
+                        depth_val = self.depth[ni, nj]
+                        
+                        # Apenas células de água (profundidade > 0 no formato POM)
+                        if depth_val > 0:
+                            # Calcular distância euclidiana
+                            distance = np.sqrt(di**2 + dj**2)
+                            neighbors.append((depth_val, distance))
+            
+            # Se encontrou vizinhos, parar a busca
+            if len(neighbors) >= 4:  # Pelo menos 4 vizinhos para boa interpolação
+                break
+        
+        # Se não encontrou vizinhos, retornar valor padrão
+        if len(neighbors) == 0:
+            return 100.0  # Profundidade padrão para oceano
+        
+        # Interpolação por distância inversa ponderada (IDW)
+        # Peso = 1 / distância^2
+        total_weight = 0.0
+        weighted_sum = 0.0
+        
+        for depth_val, distance in neighbors:
+            # Evitar divisão por zero
+            if distance < 0.01:
+                distance = 0.01
+            
+            weight = 1.0 / (distance ** 2)
+            weighted_sum += weight * depth_val
+            total_weight += weight
+        
+        interpolated_depth = weighted_sum / total_weight
+        
+        return interpolated_depth
+    
     def toggle_cell(self, i, j):
         """
         Alterna entre terra e água em uma célula.
+        
+        NOTA: No formato POM:
+        - Profundidades > 0: oceano
+        - Profundidade = 0: terra
         
         Parameters:
             i, j (int): Índices da célula
         """
         current_depth = self.depth[i, j]
         
-        if current_depth == self.nodata or current_depth > 0:
-            # Terra -> Água (profundidade média da região)
-            water_cells = self.depth[self.depth < 0]
-            if len(water_cells) > 0:
-                new_depth = np.median(water_cells)
-            else:
-                new_depth = -100.0
+        if current_depth == self.nodata or current_depth == 0:
+            # Terra -> Água (interpolar das células vizinhas)
+            new_depth = self.interpolate_from_neighbors(i, j)
             action = "TERRA → ÁGUA"
+            extra_info = f"(interpolado de vizinhos)"
         else:
             # Água -> Terra
-            new_depth = 100.0
+            new_depth = 0.0
             action = "ÁGUA → TERRA"
+            extra_info = ""
         
         self.depth[i, j] = new_depth
         self.modified = True
         
         print(f"[{action}] Célula ({i}, {j}): lon={self.lons[j]:.3f}°, "
-              f"lat={self.lats[i]:.3f}°, nova profundidade={new_depth:.1f}m")
+              f"lat={self.lats[i]:.3f}°, nova profundidade={new_depth:.1f}m {extra_info}")
         
         self.update_plot()
     
