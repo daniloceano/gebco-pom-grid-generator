@@ -31,7 +31,13 @@ from bathymetry_generator import BathymetryGridGenerator
 GEBCO_FILE = "../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
 
 # Espaçamento da grade em graus decimais
+# Opção 1: Usar o mesmo espaçamento para longitude e latitude
 GRID_SPACING = 0.25  # 0.25° ≈ 27.8 km no equador
+
+# Opção 2: Usar espaçamentos diferentes para longitude (dx) e latitude (dy)
+# Descomente as linhas abaixo para usar espaçamentos diferentes
+# SPACING_LON = 0.25  # dx em graus
+# SPACING_LAT = 0.20  # dy em graus
 
 # Extensão geográfica da grade (exemplo: costa brasileira)
 LON_MIN = -60.0   # Longitude oeste
@@ -80,7 +86,20 @@ def main():
     
     try:
         # 1. Inicializar gerador
-        generator = BathymetryGridGenerator(GEBCO_FILE, spacing=GRID_SPACING, n_workers=N_WORKERS)
+        # Verificar se espaçamentos separados foram definidos
+        if 'SPACING_LON' in globals() and 'SPACING_LAT' in globals():
+            generator = BathymetryGridGenerator(
+                GEBCO_FILE, 
+                spacing_lon=SPACING_LON, 
+                spacing_lat=SPACING_LAT, 
+                n_workers=N_WORKERS
+            )
+        else:
+            generator = BathymetryGridGenerator(
+                GEBCO_FILE, 
+                spacing=GRID_SPACING, 
+                n_workers=N_WORKERS
+            )
         
         # 2. Carregar dados do GEBCO
         if not generator.load_gebco_data():
@@ -95,10 +114,14 @@ def main():
             print("\nERRO: Falha na interpolação")
             return 1
         
-        # 5. Exportar para ASCII
+        # 5. Exportar para ASCII (formato POM)
         if not generator.export_to_ascii(OUTPUT_FILE):
             print("\nERRO: Falha ao exportar arquivo")
             return 1
+        
+        # 5b. Exportar também no formato ASC Grid (para editor interativo)
+        asc_grid_file = OUTPUT_FILE.replace('.asc', '_grid.asc')
+        generator.export_to_asc_grid(asc_grid_file)
         
         # 6. Gerar visualização (opcional)
         if GENERATE_PLOT:
@@ -110,10 +133,13 @@ def main():
         print("\n" + "="*70)
         print(" PROCESSAMENTO CONCLUÍDO COM SUCESSO!")
         print("="*70)
-        print(f"\nArquivo de saída: {OUTPUT_FILE}")
+        print(f"\nArquivo POM: {OUTPUT_FILE}")
+        print(f"Arquivo ASC Grid: {asc_grid_file} (para editor interativo)")
         if GENERATE_PLOT:
             print(f"Visualização: {PLOT_FILE}")
-        print("\nO arquivo pode ser usado diretamente no modelo POM.")
+        print("\nUso:")
+        print(f"  - Para POM: use {os.path.basename(OUTPUT_FILE)}")
+        print(f"  - Para editar: ./pom.sh edit {os.path.basename(asc_grid_file)}")
         print("="*70 + "\n")
         
         return 0

@@ -100,6 +100,7 @@ show_help() {
     echo -e "  ${GREEN}test${NC}         - Executar testes de validação"
     echo -e "  ${GREEN}run${NC}          - Executar script principal de geração"
     echo -e "  ${GREEN}quick${NC}        - Executar gerador rápido com argumentos CLI"
+    echo -e "  ${GREEN}edit${NC}         - Editar grade interativamente"
     echo -e "  ${GREEN}env${NC}          - Ativar ambiente conda interativamente"
     echo -e "  ${GREEN}status${NC}       - Verificar status do ambiente"
     echo -e "  ${GREEN}clean${NC}        - Limpar arquivos temporários e de teste"
@@ -119,6 +120,9 @@ show_help() {
     echo "  # Gerar grade rápido"
     echo "  ./pom.sh quick --region brasil_sul"
     echo "  ./pom.sh quick --lon-min -60 --lon-max -30 --lat-min -35 --lat-max -5"
+    echo ""
+    echo "  # Editar grade interativamente"
+    echo "  ./pom.sh edit ../output/pom_bathymetry_grid.asc"
     echo ""
     echo "  # Ver status"
     echo "  ./pom.sh status"
@@ -171,6 +175,32 @@ cmd_quick() {
         "$RUN_WRAPPER" quick_generate_grid.py --help
     else
         "$RUN_WRAPPER" quick_generate_grid.py "$@"
+    fi
+}
+
+# Edit
+cmd_edit() {
+    show_banner
+    echo -e "${GREEN}Editor interativo de grade...${NC}"
+    echo ""
+    
+    if [ $# -eq 0 ]; then
+        echo -e "${YELLOW}Nenhum arquivo especificado.${NC}"
+        echo ""
+        echo "Uso: ./pom.sh edit <arquivo_grade.asc>"
+        echo ""
+        echo "Exemplo:"
+        echo "  ./pom.sh edit ../output/pom_bathymetry_grid.asc"
+        echo ""
+        
+        # Listar arquivos disponíveis
+        OUTPUT_DIR="$PROJECT_ROOT/output"
+        if [ -d "$OUTPUT_DIR" ]; then
+            echo "Arquivos disponíveis em output/:"
+            find "$OUTPUT_DIR" -name "*.asc" -type f -exec basename {} \;
+        fi
+    else
+        "$RUN_WRAPPER" edit_grid_interactive.py "$@"
     fi
 }
 
@@ -302,6 +332,9 @@ main() {
             ;;
         quick)
             cmd_quick "$@"
+            ;;
+        edit)
+            cmd_edit "$@"
             ;;
         env)
             cmd_env

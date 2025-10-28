@@ -9,7 +9,9 @@ Este projeto fornece ferramentas para criar grades batimétricas interpoladas a 
 - ✨ Interpolação de alta qualidade dos dados batimétricos
 - 🚀 Processamento paralelo para melhor performance
 - 📐 Grade regular customizável com espaçamento definido pelo usuário
-- 📝 Formato ASCII compatível com POM
+- � **NOVO:** Suporte a espaçamentos diferentes para dx e dy
+- 🖱️ **NOVO:** Editor interativo de grade com zoom e click-to-edit
+- �📝 Formato ASCII compatível com POM
 - 🖼️ Visualização automática da batimetria
 - 🔧 Ambiente conda isolado
 
@@ -24,13 +26,15 @@ POM/
 ├── scripts/                      # Scripts executáveis
 │   ├── generate_grid.py          # Script principal configurável
 │   ├── quick_generate.py         # Interface CLI rápida
+│   ├── edit_grid_interactive.py  # Editor interativo (NOVO)
 │   ├── setup_environment.sh      # Instalação do ambiente conda
 │   ├── run_pom.sh                # Wrapper de execução
 │   └── pom.sh                    # Script mestre
 │
 ├── examples/                     # Exemplos de uso
 │   ├── example_basic.py          # Uso básico
-│   └── example_advanced.py       # Uso avançado com customizações
+│   ├── example_advanced.py       # Uso avançado com customizações
+│   └── generate_grid_different_spacing.py  # dx ≠ dy (NOVO)
 │
 ├── tests/                        # Testes e validação
 │   └── test_bathymetry_generator.py
@@ -39,6 +43,7 @@ POM/
 │   ├── README.md                 # Documentação principal
 │   ├── INSTALL.md                # Guia de instalação
 │   ├── QUICK_REFERENCE.md        # Referência rápida
+│   ├── INTERACTIVE_EDITOR.md     # Guia do editor interativo (NOVO)
 │   └── ...
 │
 ├── output/                       # Diretório para arquivos gerados
@@ -76,7 +81,10 @@ cd scripts
 # Opção B: Script principal (edite parâmetros no arquivo)
 ./pom.sh run
 
-# Opção C: Python direto
+# Opção C: Editor interativo (NOVO)
+./pom.sh edit ../output/pom_bathymetry_grid.asc
+
+# Opção D: Python direto
 conda activate pom
 python quick_generate.py --help
 ```
@@ -96,6 +104,7 @@ A documentação completa está em `docs/`:
 
 - **[INSTALL.md](docs/INSTALL.md)** - Guia detalhado de instalação
 - **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Referência rápida de comandos
+- **[INTERACTIVE_EDITOR.md](docs/INTERACTIVE_EDITOR.md)** - **NOVO:** Guia do editor interativo
 - **[README.md](docs/README.md)** - Documentação técnica completa
 
 ## 🛠️ Requisitos
@@ -130,9 +139,15 @@ python scripts/quick_generate.py \
 ```python
 from src.bathymetry_generator import BathymetryGridGenerator
 
-# Criar gerador
+# Exemplo 1: Mesmo espaçamento (dx = dy)
 gen = BathymetryGridGenerator("gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc", 
                               spacing=0.25, n_workers=4)
+
+# Exemplo 2: Espaçamentos diferentes (dx ≠ dy) - NOVO
+gen = BathymetryGridGenerator("gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc",
+                              spacing_lon=0.30,  # dx
+                              spacing_lat=0.20,  # dy
+                              n_workers=4)
 
 # Processar
 gen.load_gebco_data()
@@ -142,6 +157,25 @@ gen.export_to_ascii("output/my_grid.asc")
 gen.plot_bathymetry("output/my_grid.png")
 gen.cleanup()
 ```
+
+### Editor Interativo (NOVO)
+
+```bash
+# Gerar grade inicial
+./scripts/pom.sh run
+
+# Editar interativamente
+./scripts/pom.sh edit ../output/pom_bathymetry_grid.asc
+
+# Controles:
+# - Click esquerdo: Alternar terra/água
+# - +/- ou scroll: Zoom in/out
+# - r: Reset zoom
+# - s: Salvar
+# - q: Sair
+```
+
+Veja [INTERACTIVE_EDITOR.md](docs/INTERACTIVE_EDITOR.md) para guia completo.
 
 ## 📊 Formato de Saída
 

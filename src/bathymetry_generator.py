@@ -35,7 +35,8 @@ class BathymetryGridGenerator:
     
     Attributes:
         gebco_file (str): Caminho para o arquivo NetCDF do GEBCO
-        spacing (float): Espaçamento da grade em graus decimais
+        spacing_lon (float): Espaçamento da grade em longitude (graus decimais)
+        spacing_lat (float): Espaçamento da grade em latitude (graus decimais)
         lon_min, lon_max (float): Limites de longitude
         lat_min, lat_max (float): Limites de latitude
         gebco_data (xarray.Dataset): Dados do GEBCO carregados
@@ -45,17 +46,35 @@ class BathymetryGridGenerator:
         n_workers (int): Número de processos paralelos a usar
     """
     
-    def __init__(self, gebco_file, spacing=0.25, n_workers=None):
+    def __init__(self, gebco_file, spacing=None, spacing_lon=None, spacing_lat=None, n_workers=None):
         """
         Inicializa o gerador de grade batimétrica.
         
         Parameters:
             gebco_file (str): Caminho para o arquivo NetCDF do GEBCO
             spacing (float): Espaçamento horizontal da grade em graus (padrão: 0.25)
+                           Se fornecido, aplica o mesmo espaçamento para lon e lat
+            spacing_lon (float): Espaçamento em longitude (dx). Sobrescreve 'spacing' se fornecido
+            spacing_lat (float): Espaçamento em latitude (dy). Sobrescreve 'spacing' se fornecido
             n_workers (int): Número de processos paralelos. Se None, usa cpu_count()-1
         """
         self.gebco_file = gebco_file
-        self.spacing = spacing
+        
+        # Configurar espaçamentos (suporte a dx e dy diferentes)
+        if spacing_lon is not None and spacing_lat is not None:
+            self.spacing_lon = spacing_lon
+            self.spacing_lat = spacing_lat
+        elif spacing is not None:
+            self.spacing_lon = spacing
+            self.spacing_lat = spacing
+        else:
+            # Valores padrão
+            self.spacing_lon = 0.25
+            self.spacing_lat = 0.25
+        
+        # Manter compatibilidade com código legado
+        self.spacing = self.spacing_lon  # Para compatibilidade
+        
         self.gebco_data = None
         self.grid_lons = None
         self.grid_lats = None
@@ -71,8 +90,10 @@ class BathymetryGridGenerator:
         if not os.path.exists(gebco_file):
             raise FileNotFoundError(f"Arquivo GEBCO não encontrado: {gebco_file}")
         
-        print(f"Inicializado gerador de grade com espaçamento de {spacing}°")
-        print(f"Processamento paralelo: {self.n_workers} workers")
+        print(f"Inicializado gerador de grade:")
+        print(f"  Espaçamento longitude (dx): {self.spacing_lon}°")
+        print(f"  Espaçamento latitude (dy): {self.spacing_lat}°")
+        print(f"  Processamento paralelo: {self.n_workers} workers")
     
     
     def load_gebco_data(self):
@@ -174,14 +195,15 @@ class BathymetryGridGenerator:
         print(f"  Latitude: {lat_min}° a {lat_max}°")
         
         # Criar vetores de coordenadas da nova grade
-        self.grid_lons = np.arange(lon_min, lon_max + self.spacing, self.spacing)
-        self.grid_lats = np.arange(lat_min, lat_max + self.spacing, self.spacing)
+        self.grid_lons = np.arange(lon_min, lon_max + self.spacing_lon, self.spacing_lon)
+        self.grid_lats = np.arange(lat_min, lat_max + self.spacing_lat, self.spacing_lat)
         
         n_lons = len(self.grid_lons)
         n_lats = len(self.grid_lats)
         
         print(f"  Número de pontos: {n_lons} (lon) x {n_lats} (lat) = {n_lons * n_lats} pontos")
-        print(f"  Espaçamento: {self.spacing}°")
+        print(f"  Espaçamento longitude (dx): {self.spacing_lon}°")
+        print(f"  Espaçamento latitude (dy): {self.spacing_lat}°")
     
     
     @staticmethod
@@ -483,6 +505,62 @@ Formato: i (col), j (row), longitude (°), latitude (°), profundidade (m)
             return False
         except Exception as e:
             print(f"ERRO ao criar visualização: {e}")
+            return False
+    
+    
+    def export_to_asc_grid(self, output_file):
+        """
+        Exporta a grade interpolada para formato ASC Grid (ESRI ASCII Raster).
+        
+        Este formato é compatível com o editor interativo e ferramentas GIS.
+        
+        Parameters:
+            output_file (str): Caminho para o arquivo de saída
+        
+        Returns:
+            bool: True se a exportação foi bem-sucedida
+        """
+        if self.depth_grid is None:
+            print("ERRO: Dados interpolados não disponíveis. Execute interpolate_bathymetry() primeiro.")
+            return False
+        
+        print(f"\nExportando grade ASC Grid para: {output_file}")
+        
+        try:
+            n_lats, n_lons = self.depth_grid.shape
+            
+            with open(output_file, 'w') as f:
+                # Escrever cabeçalho
+                f.write(f"# Grade batimétrica POM - Formato ASC Grid\n")
+                f.write(f"# Gerada em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"# Fonte: GEBCO 2025\n")
+                f.write(f"ncols         {n_lons}\n")
+                f.write(f"nrows         {n_lats}\n")
+                f.write(f"xllcorner     {self.grid_lons[0]}\n")
+                f.write(f"yllcorner     {self.grid_lats[0]}\n")
+                f.write(f"dx            {self.spacing_lon}\n")
+                f.write(f"dy            {self.spacing_lat}\n")
+                f.write(f"NODATA_value  -9999\n")
+                
+                # Escrever dados (linha por linha)
+                for j in range(n_lats):
+                    row_values = []
+                    for i in range(n_lons):
+                        depth = self.depth_grid[j, i]
+                        row_values.append(f'{depth:10.3f}')
+                    f.write(' '.join(row_values) + '\n')
+            
+            print(f"✓ Arquivo ASC Grid salvo com sucesso!")
+            print(f"  Dimensões: {n_lons} x {n_lats}")
+            print(f"  Tamanho: {os.path.getsize(output_file) / 1024:.1f} KB")
+            print(f"  Compatível com editor interativo e ferramentas GIS")
+            
+            return True
+            
+        except Exception as e:
+            print(f"ERRO ao exportar ASC Grid: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     
