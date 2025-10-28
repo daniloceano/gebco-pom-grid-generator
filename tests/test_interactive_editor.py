@@ -56,30 +56,41 @@ try:
     with open(test_file, 'r') as f:
         lines = f.readlines()
     
-    # Parsear cabeçalho
-    header = {}
+    # Contar linhas de comentário e dados
+    comment_lines = 0
+    data_lines = 0
+    
     for line in lines:
-        if line.strip().startswith('#'):
-            continue
-        parts = line.strip().split()
-        if len(parts) == 2:
-            try:
-                header[parts[0]] = float(parts[1])
-            except ValueError:
-                break
+        if line.strip().startswith('#') or not line.strip():
+            comment_lines += 1
         else:
-            break
+            parts = line.strip().split()
+            if len(parts) == 5:
+                try:
+                    # Validar formato: i j lon lat depth
+                    [float(p) for p in parts]
+                    data_lines += 1
+                except ValueError:
+                    pass
     
-    print(f"✓ Cabeçalho parseado: {len(header)} campos")
-    print(f"  ncols: {header.get('ncols', header.get('NCOLS', '?'))}")
-    print(f"  nrows: {header.get('nrows', header.get('NROWS', '?'))}")
+    print(f"✓ Arquivo parseado:")
+    print(f"  Linhas de comentário: {comment_lines}")
+    print(f"  Linhas de dados: {data_lines}")
     
-    if 'dx' in header and 'dy' in header:
-        print(f"  dx: {header['dx']}")
-        print(f"  dy: {header['dy']}")
-        print("  ✓ Suporte a dx/dy diferentes detectado!")
+    if data_lines > 0:
+        print(f"  ✓ Formato de 5 colunas detectado!")
+        
+        # Ler primeira linha de dados para mostrar exemplo
+        for line in lines:
+            if not line.strip().startswith('#') and line.strip():
+                parts = line.strip().split()
+                if len(parts) == 5:
+                    print(f"\n  Exemplo de linha de dados:")
+                    print(f"    i={parts[0]}, j={parts[1]}, lon={parts[2]}, lat={parts[3]}, depth={parts[4]}")
+                    break
     else:
-        print(f"  cellsize: {header.get('cellsize', header.get('CELLSIZE', '?'))}")
+        print(f"  ✗ Nenhuma linha de dados válida encontrada")
+        sys.exit(1)
     
 except Exception as e:
     print(f"✗ Erro ao ler arquivo: {e}")

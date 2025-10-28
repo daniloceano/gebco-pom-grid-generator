@@ -84,7 +84,8 @@ class InteractiveBathymetryEditor:
     
     def load_grid(self):
         """
-        Carrega a grade batimétrica do arquivo ASCII.
+        Carrega a grade batimétrica do arquivo ASCII formato POM (5 colunas).
+        Formato: i j lon lat depth
         """
         print(f"\nCarregando grade de: {self.grid_file}")
         
@@ -97,55 +98,89 @@ class InteractiveBathymetryEditor:
             shutil.copy2(self.grid_file, self.backup_file)
             print(f"Backup criado: {self.backup_file}")
         
-        # Ler cabeçalho e dados
+        # Ler arquivo
         with open(self.grid_file, 'r') as f:
             lines = f.readlines()
         
-        # Parsear cabeçalho
-        header = {}
-        data_start = 0
-        for i, line in enumerate(lines):
-            if line.strip().startswith('#'):
-                continue
-            parts = line.strip().split()
-            if len(parts) == 2:
-                try:
-                    header[parts[0]] = float(parts[1])
-                    data_start = i + 1
-                except ValueError:
-                    break
+        # Separar comentários/cabeçalho dos dados
+        data_lines = []
+        header_lines = []
+        
+        for line in lines:
+            if line.strip().startswith('#') or not line.strip():
+                header_lines.append(line)
             else:
-                break
+                # Tentar parsear como dados (5 colunas: i j lon lat depth)
+                parts = line.strip().split()
+                if len(parts) == 5:
+                    try:
+                        # Validar que são números
+                        [float(p) for p in parts]
+                        data_lines.append(line)
+                    except ValueError:
+                        # Não é uma linha de dados, adicionar ao cabeçalho
+                        header_lines.append(line)
+                else:
+                    header_lines.append(line)
         
-        self.ncols = int(header.get('ncols', header.get('NCOLS')))
-        self.nrows = int(header.get('nrows', header.get('NROWS')))
-        self.xllcorner = header.get('xllcorner', header.get('XLLCORNER'))
-        self.yllcorner = header.get('yllcorner', header.get('YLLCORNER'))
-        self.cellsize_lon = header.get('cellsize', header.get('CELLSIZE', header.get('dx', 0.25)))
-        self.cellsize_lat = header.get('cellsize', header.get('CELLSIZE', header.get('dy', 0.25)))
+        # Guardar cabeçalho original para salvar depois
+        self.original_header = ''.join(header_lines)
         
-        # Tentar pegar dx e dy separados se existirem
-        if 'dx' in header:
-            self.cellsize_lon = header['dx']
-        if 'dy' in header:
-            self.cellsize_lat = header['dy']
+        # Parsear dados (formato: i j lon lat depth)
+        data = np.array([[float(val) for val in line.split()] 
+                         for line in data_lines])
         
-        self.nodata = header.get('NODATA_value', header.get('nodata_value', -9999))
+        if len(data) == 0:
+            raise ValueError("Nenhum dado válido encontrado no arquivo")
         
-        # Ler dados
-        data_lines = lines[data_start:]
-        self.depth = np.array([[float(val) for val in line.split()] 
-                               for line in data_lines if line.strip()])
+        # Extrair colunas
+        i_indices = data[:, 0].astype(int)
+        j_indices = data[:, 1].astype(int)
+        lons_data = data[:, 2]
+        lats_data = data[:, 3]
+        depths_data = data[:, 4]
         
-        # Criar coordenadas
-        self.lons = self.xllcorner + np.arange(self.ncols) * self.cellsize_lon
-        self.lats = self.yllcorner + np.arange(self.nrows) * self.cellsize_lat
+        # Determinar dimensões da grade
+        self.ncols = int(i_indices.max())
+        self.nrows = int(j_indices.max())
         
-        # Inverter se necessário (depende da convenção do arquivo)
-        if self.depth.shape[0] != self.nrows or self.depth.shape[1] != self.ncols:
-            self.depth = self.depth.T
+        # Extrair coordenadas únicas e ordenadas
+        unique_lons = np.unique(lons_data)
+        unique_lats = np.unique(lats_data)
         
-        print(f"Grade carregada:")
+        self.lons = unique_lons
+        self.lats = unique_lats
+        
+        # Calcular espaçamentos
+        if len(unique_lons) > 1:
+            self.cellsize_lon = np.mean(np.diff(unique_lons))
+        else:
+            self.cellsize_lon = 0.25
+            
+        if len(unique_lats) > 1:
+            self.cellsize_lat = np.mean(np.diff(unique_lats))
+        else:
+            self.cellsize_lat = 0.25
+        
+        # Limites
+        self.xllcorner = self.lons[0]
+        self.yllcorner = self.lats[0]
+        
+        # Reconstruir matriz 2D de profundidades
+        self.depth = np.zeros((self.nrows, self.ncols))
+        
+        for idx in range(len(data)):
+            i = int(data[idx, 0]) - 1  # Converter para índice 0-based
+            j = int(data[idx, 1]) - 1
+            depth_val = data[idx, 4]
+            
+            # Armazenar na matriz (j=linha, i=coluna)
+            if 0 <= j < self.nrows and 0 <= i < self.ncols:
+                self.depth[j, i] = depth_val
+        
+        self.nodata = -9999  # Valor padrão
+        
+        print(f"Grade carregada (formato POM 5 colunas):")
         print(f"  Dimensões: {self.ncols} x {self.nrows}")
         print(f"  Longitude: {self.lons[0]:.2f} a {self.lons[-1]:.2f}")
         print(f"  Latitude: {self.lats[0]:.2f} a {self.lats[-1]:.2f}")
@@ -383,7 +418,7 @@ class InteractiveBathymetryEditor:
     
     def save(self):
         """
-        Salva as modificações no arquivo.
+        Salva as modificações no arquivo formato POM (5 colunas).
         """
         if not self.modified:
             print("Nenhuma modificação para salvar.")
@@ -396,19 +431,36 @@ class InteractiveBathymetryEditor:
         version_file = self.grid_file.replace('.asc', f'_v{timestamp}.asc')
         
         with open(version_file, 'w') as f:
-            # Escrever cabeçalho
+            # Escrever cabeçalho original (comentários)
             f.write(f"# Grade batimétrica editada - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"ncols         {self.ncols}\n")
-            f.write(f"nrows         {self.nrows}\n")
-            f.write(f"xllcorner     {self.xllcorner}\n")
-            f.write(f"yllcorner     {self.yllcorner}\n")
-            f.write(f"dx            {self.cellsize_lon}\n")
-            f.write(f"dy            {self.cellsize_lat}\n")
-            f.write(f"NODATA_value  {self.nodata}\n")
             
-            # Escrever dados
-            for row in self.depth:
-                f.write(' '.join([f'{val:10.3f}' for val in row]) + '\n')
+            # Adicionar informações sobre espaçamento se não estiverem no header original
+            if hasattr(self, 'original_header'):
+                # Escrever header original (sem primeira linha que já escrevemos)
+                header_lines = self.original_header.split('\n')
+                for line in header_lines[1:]:  # Pular primeira linha
+                    if line.strip():
+                        f.write(line + '\n')
+            else:
+                # Criar header básico
+                f.write(f"# Fonte: GEBCO 2025\n")
+                f.write(f"# Espaçamento dx: {self.cellsize_lon}°, dy: {self.cellsize_lat}°\n")
+                f.write(f"# Dimensões: {self.ncols} x {self.nrows}\n")
+                f.write(f"# Formato: i (col), j (row), longitude (°), latitude (°), profundidade (m)\n")
+            
+            f.write("#\n")  # Linha em branco para separar header dos dados
+            
+            # Escrever dados no formato de 5 colunas: i j lon lat depth
+            for j in range(self.nrows):
+                for i in range(self.ncols):
+                    i_idx = i + 1  # Índice 1-based
+                    j_idx = j + 1  # Índice 1-based
+                    lon = self.lons[i]
+                    lat = self.lats[j]
+                    depth = self.depth[j, i]
+                    
+                    # Formato: i j lon lat depth
+                    f.write(f"{i_idx:6d} {j_idx:6d} {lon:10.4f} {lat:10.4f} {depth:10.2f}\n")
         
         print(f"Versão salva: {version_file}")
         

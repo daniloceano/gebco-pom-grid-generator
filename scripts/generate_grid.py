@@ -114,14 +114,10 @@ def main():
             print("\nERRO: Falha na interpolação")
             return 1
         
-        # 5. Exportar para ASCII (formato POM)
+        # 5. Exportar para ASCII (formato POM - 5 colunas)
         if not generator.export_to_ascii(OUTPUT_FILE):
             print("\nERRO: Falha ao exportar arquivo")
             return 1
-        
-        # 5b. Exportar também no formato ASC Grid (para editor interativo)
-        asc_grid_file = OUTPUT_FILE.replace('.asc', '_grid.asc')
-        generator.export_to_asc_grid(asc_grid_file)
         
         # 6. Gerar visualização (opcional)
         if GENERATE_PLOT:
@@ -133,13 +129,12 @@ def main():
         print("\n" + "="*70)
         print(" PROCESSAMENTO CONCLUÍDO COM SUCESSO!")
         print("="*70)
-        print(f"\nArquivo POM: {OUTPUT_FILE}")
-        print(f"Arquivo ASC Grid: {asc_grid_file} (para editor interativo)")
+        print(f"\nArquivo de saída: {OUTPUT_FILE}")
         if GENERATE_PLOT:
             print(f"Visualização: {PLOT_FILE}")
         print("\nUso:")
         print(f"  - Para POM: use {os.path.basename(OUTPUT_FILE)}")
-        print(f"  - Para editar: ./pom.sh edit {os.path.basename(asc_grid_file)}")
+        print(f"  - Para editar: ./pom.sh edit {os.path.basename(OUTPUT_FILE)}")
         print("="*70 + "\n")
         
         return 0
