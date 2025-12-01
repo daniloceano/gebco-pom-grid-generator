@@ -25,37 +25,43 @@ i  j  longitude  latitude  depth
 
 ## Como usar
 
-### Uso básico
+### Visualizar Grade (somente leitura)
 
 ```bash
+# Via ocean_mesh_tools.sh (recomendado)
+./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc
+
+# Salvar figura
+./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc -o mapa.png
+
+# Alta resolução
+./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc -o mapa.png --dpi 600
+
+# Direto (do diretório scripts/)
+python visualize_grid.py ../../output/pom_bathymetry_grid.asc
+python visualize_grid.py ../../output/pom_bathymetry_grid.asc -o figura.png
+```
+
+### Editar Grade (modo interativo)
+
+```bash
+# Via ocean_mesh_tools.sh (recomendado)
+./ocean_mesh_tools.sh edit output/pom_bathymetry_grid.asc
+
+# Direto (do diretório scripts/)
 cd scripts
 python edit_grid.py ../../output/pom_bathymetry_grid.asc
-```
 
-### Com opções
-
-```bash
-# Sem linha de costa
+# Com opções
 python edit_grid.py grade.asc --no-coastline
-
-# Sem contornos batimétricos
 python edit_grid.py grade.asc --no-contours
-
-# Sem Cartopy (linha de costa simplificada)
-python edit_grid.py grade.asc --no-cartopy
-```
-
-### Via ocean_mesh_tools.sh
-
-```bash
-cd ../../..
-./ocean_mesh_tools.sh edit output/pom_bathymetry_grid.asc
 ```
 
 ## Controles
 
 ### Mouse
 - **Click esquerdo**: Alternar terra/água no ponto clicado
+- **Click direito + arrastar**: Mover/pan pelo mapa
 - **Scroll up**: Zoom in
 - **Scroll down**: Zoom out
 

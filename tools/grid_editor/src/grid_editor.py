@@ -19,6 +19,7 @@ Características:
 
 Controles:
 - Click esquerdo: Alternar terra/água no ponto clicado
+- Click direito + arrastar: Mover/pan pelo mapa
 - Tecla '+' ou scroll up: Zoom in
 - Tecla '-' ou scroll down: Zoom out
 - Tecla 'r': Reset do zoom
@@ -81,6 +82,10 @@ class GridEditor:
         self.current_xlim = None
         self.current_ylim = None
         
+        # Estado do arraste (pan com botão direito)
+        self.is_dragging = False
+        self.drag_start_pos = None
+        
         # Configurar figura
         self.setup_figure()
         
@@ -89,6 +94,7 @@ class GridEditor:
         print("="*70)
         print("\nControles:")
         print("  Click esquerdo: Alternar terra/água")
+        print("  Click direito + arrastar: Mover/pan pelo mapa")
         print("  '+' ou scroll up: Zoom in")
         print("  '-' ou scroll down: Zoom out")
         print("  'r': Reset do zoom")
@@ -191,6 +197,8 @@ class GridEditor:
         
         # Conectar eventos
         self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+        self.fig.canvas.mpl_connect('button_release_event', self.on_release)
+        self.fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
         self.fig.canvas.mpl_connect('key_press_event', self.on_key)
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
         
@@ -398,20 +406,64 @@ class GridEditor:
         """
         Callback para cliques do mouse.
         """
-        if event.inaxes != self.ax or event.button != 1:
+        if event.inaxes != self.ax:
             return
         
-        # Obter coordenadas do click
-        lon, lat = event.xdata, event.ydata
+        # Botão esquerdo: alternar terra/água
+        if event.button == 1:
+            # Obter coordenadas do click
+            lon, lat = event.xdata, event.ydata
+            
+            if lon is None or lat is None:
+                return
+            
+            # Encontrar célula mais próxima
+            j, i = self.find_nearest_cell(lon, lat)
+            
+            # Toggle célula
+            self.toggle_cell(j, i)
         
-        if lon is None or lat is None:
+        # Botão direito: iniciar arraste
+        elif event.button == 3:
+            self.is_dragging = True
+            self.drag_start_pos = (event.xdata, event.ydata)
+    
+    def on_release(self, event):
+        """
+        Callback para soltar botão do mouse.
+        """
+        if event.button == 3:
+            self.is_dragging = False
+            self.drag_start_pos = None
+    
+    def on_motion(self, event):
+        """
+        Callback para movimento do mouse.
+        """
+        if not self.is_dragging or event.inaxes != self.ax:
             return
         
-        # Encontrar célula mais próxima
-        j, i = self.find_nearest_cell(lon, lat)
+        if self.drag_start_pos is None or event.xdata is None or event.ydata is None:
+            return
         
-        # Toggle célula
-        self.toggle_cell(j, i)
+        # Calcular deslocamento
+        dx = self.drag_start_pos[0] - event.xdata
+        dy = self.drag_start_pos[1] - event.ydata
+        
+        # Obter limites atuais
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        
+        # Aplicar deslocamento (pan)
+        self.current_xlim = [xlim[0] + dx, xlim[1] + dx]
+        self.current_ylim = [ylim[0] + dy, ylim[1] + dy]
+        
+        self.ax.set_xlim(self.current_xlim)
+        self.ax.set_ylim(self.current_ylim)
+        self.fig.canvas.draw_idle()
+        
+        # Atualizar posição inicial para movimento contínuo
+        self.drag_start_pos = (event.xdata + dx, event.ydata + dy)
     
     def on_key(self, event):
         """

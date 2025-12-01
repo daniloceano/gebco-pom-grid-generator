@@ -30,11 +30,11 @@ from bathymetry_generator import BathymetryGridGenerator
 # ============================================================================
 
 # Caminho para o arquivo GEBCO
-GEBCO_FILE = "../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
+GEBCO_FILE = "./gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
 
 # Espaçamentos DIFERENTES para longitude (dx) e latitude (dy)
 SPACING_LON = 0.30  # dx = 0.30° (mais espaçado em longitude)
-SPACING_LAT = 0.20  # dy = 0.20° (mais refinado em latitude)
+SPACING_LAT = 0.25  # dy = 0.25° (mais refinado em latitude)
 
 # Região: Sudeste do Brasil
 LON_MIN = -50.0
@@ -43,9 +43,9 @@ LAT_MIN = -28.0
 LAT_MAX = -20.0
 
 # Arquivos de saída
-OUTPUT_DIR = "../output"
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "pom_grid_dx030_dy020.asc")
-PLOT_FILE = os.path.join(OUTPUT_DIR, "pom_grid_dx030_dy020.png")
+OUTPUT_DIR = "./output"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "test_grid_southeast_Brazil_dx0.30_dy0.25.asc")
+PLOT_FILE = os.path.join(OUTPUT_DIR, "test_grid_southeast_Brazil_dx0.30_dy0.25.png")
 
 
 # ============================================================================

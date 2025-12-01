@@ -40,12 +40,19 @@ Editor visual interativo para manipulação manual de grades oceânicas.
 - 🗺️ Linha de costa real (Cartopy/Natural Earth)
 - 📊 Contornos batimétricos com labels
 - 🎨 Terra em cinza, oceano em azul
-- 🖱️ Click para alternar terra ↔ água
-- 🔍 Zoom interativo
+- �️ Visualização de grades (com opção de salvar)
+- �🖱️ Click para alternar terra ↔ água
+- �️ Click direito + arrastar para pan
+- �🔍 Zoom interativo
 - 🧮 Interpolação automática (IDW)
 
 **Uso rápido**:
 ```bash
+# Visualizar grade (somente leitura)
+./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc
+./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc -o mapa.png
+
+# Editar grade (interativo)
 ./ocean_mesh_tools.sh edit output/pom_bathymetry_grid.asc
 ```
 

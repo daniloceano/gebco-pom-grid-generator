@@ -41,32 +41,55 @@ LAT_MAX = -5.0    # Latitude norte
 GRID_SPACING = 0.25  # 0.25° ≈ 27.8 km
 ```
 
-### 2. Editar Grade Interativamente
+### 2. Visualizar Grade
 
 ```bash
-# Abrir editor
-python edit_grid_interactive.py ../../../output/pom_bathymetry_grid.asc
+# Via ocean_mesh_tools.sh (recomendado)
+./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc
+
+# Salvar figura
+./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc -o mapa.png
+
+# Alta resolução
+./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc -o mapa.png --dpi 600
+
+# Direto do diretório do módulo
+cd tools/grid_editor/scripts
+python visualize_grid.py ../../../output/pom_bathymetry_grid.asc
+python visualize_grid.py ../../../output/pom_bathymetry_grid.asc -o figura.png
+```
+
+### 3. Editar Grade Interativamente
+
+```bash
+# Via ocean_mesh_tools.sh (recomendado)
+./ocean_mesh_tools.sh edit output/pom_bathymetry_grid.asc
+
+# Direto do diretório do módulo
+cd tools/grid_editor/scripts
+python edit_grid.py ../../../output/pom_bathymetry_grid.asc
 ```
 
 **Controles:**
 - **Click esquerdo**: Alternar terra ↔ água
+- **Click direito + arrastar**: Mover/pan pelo mapa
 - **+** ou **scroll up**: Zoom in
 - **-** ou **scroll down**: Zoom out
 - **r**: Reset do zoom
+- **g**: Toggle grade
+- **c**: Toggle linha de costa
+- **b**: Toggle contornos batimétricos
 - **s**: Salvar modificações
 - **q**: Sair
 
-### 3. Verificar Saída
+### 4. Verificar Saída
 
 ```bash
 # Ver primeiras linhas
-head -20 ../../../output/pom_bathymetry_grid.asc
+head -20 output/pom_bathymetry_grid.asc
 
-# Visualizar (macOS)
-open ../../../output/pom_bathymetry_grid.png
-
-# Visualizar (Linux)
-xdg-open ../../../output/pom_bathymetry_grid.png
+# Ver estatísticas
+wc -l output/pom_bathymetry_grid.asc
 ```
 
 ## 📐 Guia de Espaçamento

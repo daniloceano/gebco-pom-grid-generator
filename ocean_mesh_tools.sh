@@ -13,6 +13,7 @@
 #   gebco      - Ir para ferramenta GEBCO
 #   mask       - Extrair máscara de reanálise
 #   apply      - Aplicar máscara em grade
+#   view       - Visualizar grade
 #   edit       - Editar grade interativamente
 #   help       - Mostrar esta ajuda
 #
@@ -33,6 +34,15 @@ show_banner() {
     echo "  Ferramentas para geração de grades oceânicas"
     echo "======================================================================"
     echo -e "${NC}"
+    
+    # Mostrar status do ambiente conda
+    if [[ "$CONDA_DEFAULT_ENV" == "ocean_mesh_tools" ]]; then
+        echo -e "${GREEN}✓ Ambiente conda ativo: ocean_mesh_tools${NC}"
+    else
+        echo -e "${YELLOW}⚠ Ambiente conda não ativo${NC}"
+        echo -e "  Execute: ${YELLOW}conda activate ocean_mesh_tools${NC}"
+    fi
+    echo ""
 }
 
 # Detectar diretório raiz do projeto
@@ -143,9 +153,10 @@ cmd_mask() {
     
     # Verificar se ambiente está ativo
     if [[ "$CONDA_DEFAULT_ENV" != "ocean_mesh_tools" ]]; then
-        echo -e "${YELLOW}Ativando ambiente conda 'ocean_mesh_tools'...${NC}"
-        eval "$(conda shell.bash hook)"
-        conda activate ocean_mesh_tools
+        echo -e "${YELLOW}⚠ Ambiente conda 'ocean_mesh_tools' não está ativo${NC}"
+        echo "Por favor, ative o ambiente antes de executar:"
+        echo -e "  ${YELLOW}conda activate ocean_mesh_tools${NC}"
+        exit 1
     fi
     
     cd "$SCRIPT_DIR"
@@ -211,9 +222,10 @@ cmd_apply() {
     
     # Verificar se ambiente está ativo
     if [[ "$CONDA_DEFAULT_ENV" != "ocean_mesh_tools" ]]; then
-        echo -e "${YELLOW}Ativando ambiente conda 'ocean_mesh_tools'...${NC}"
-        eval "$(conda shell.bash hook)"
-        conda activate ocean_mesh_tools
+        echo -e "${YELLOW}⚠ Ambiente conda 'ocean_mesh_tools' não está ativo${NC}"
+        echo "Por favor, ative o ambiente antes de executar:"
+        echo -e "  ${YELLOW}conda activate ocean_mesh_tools${NC}"
+        exit 1
     fi
     
     cd "$SCRIPT_DIR"
@@ -223,6 +235,97 @@ cmd_apply() {
         echo ""
         echo -e "${GREEN}✓ Máscara aplicada com sucesso!${NC}"
     fi
+}
+
+# Comando: visualizar grade
+cmd_view() {
+    show_banner
+    
+    if [ -z "$1" ]; then
+        echo -e "${YELLOW}Uso: ./ocean_mesh_tools.sh view <arquivo.asc> [opções]${NC}"
+        echo ""
+        echo "Opções:"
+        echo "  -o, --output FILE  - Salvar figura em arquivo"
+        echo "  --dpi DPI          - DPI da figura (padrão: 300)"
+        echo ""
+        echo "Características da visualização:"
+        echo "  • Terra em cinza (células da grade)"
+        echo "  • Oceano em azul (escala de profundidade)"
+        echo "  • Linha de costa real (Cartopy/Natural Earth)"
+        echo "  • Contornos batimétricos com labels"
+        echo ""
+        echo "Exemplos:"
+        echo "  # Mostrar grade (não salvar)"
+        echo "  ./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc"
+        echo ""
+        echo "  # Salvar figura"
+        echo "  ./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc -o mapa.png"
+        echo ""
+        echo "  # Alta resolução"
+        echo "  ./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc -o mapa.png --dpi 600"
+        exit 0
+    fi
+    
+    GRID_FILE="$1"
+    shift
+    
+    if [ ! -f "$GRID_FILE" ]; then
+        echo -e "${RED}Erro: Arquivo não encontrado: $GRID_FILE${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}Visualizando grade...${NC}"
+    echo "Arquivo: $GRID_FILE"
+    echo ""
+    
+    # Verificar se ambiente está ativo
+    if [[ "$CONDA_DEFAULT_ENV" != "ocean_mesh_tools" ]]; then
+        echo -e "${YELLOW}⚠ Ambiente conda 'ocean_mesh_tools' não está ativo${NC}"
+        echo "Por favor, ative o ambiente antes de executar:"
+        echo -e "  ${YELLOW}conda activate ocean_mesh_tools${NC}"
+        echo ""
+        echo "Depois execute novamente:"
+        echo -e "  ${YELLOW}./ocean_mesh_tools.sh view $GRID_FILE $@${NC}"
+        exit 1
+    fi
+    
+    # Converter GRID_FILE para caminho absoluto
+    GRID_FILE_ABS="$(cd "$(dirname "$GRID_FILE")" && pwd)/$(basename "$GRID_FILE")"
+    
+    # Processar argumentos, convertendo -o/--output para caminho absoluto
+    ARGS=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -o|--output)
+                if [[ -n "$2" ]]; then
+                    # Converter output para caminho absoluto
+                    OUTPUT_DIR="$(dirname "$2")"
+                    OUTPUT_FILE="$(basename "$2")"
+                    if [[ "$OUTPUT_DIR" == "." ]]; then
+                        OUTPUT_ABS="$PROJECT_ROOT/$OUTPUT_FILE"
+                    elif [[ "$OUTPUT_DIR" == /* ]]; then
+                        # Já é absoluto
+                        OUTPUT_ABS="$2"
+                    else
+                        # Relativo, converter para absoluto
+                        OUTPUT_ABS="$PROJECT_ROOT/$2"
+                    fi
+                    ARGS+=("-o" "$OUTPUT_ABS")
+                    shift 2
+                else
+                    echo -e "${RED}Erro: -o/--output requer um arquivo${NC}"
+                    exit 1
+                fi
+                ;;
+            *)
+                ARGS+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    cd "$SCRIPT_DIR/tools/grid_editor/scripts"
+    python visualize_grid.py "$GRID_FILE_ABS" "${ARGS[@]}"
 }
 
 # Comando: editar grade
@@ -250,9 +353,10 @@ cmd_edit() {
     
     # Verificar se ambiente está ativo
     if [[ "$CONDA_DEFAULT_ENV" != "ocean_mesh_tools" ]]; then
-        echo -e "${YELLOW}Ativando ambiente conda 'ocean_mesh_tools'...${NC}"
-        eval "$(conda shell.bash hook)"
-        conda activate ocean_mesh_tools
+        echo -e "${YELLOW}⚠ Ambiente conda 'ocean_mesh_tools' não está ativo${NC}"
+        echo "Por favor, ative o ambiente antes de executar:"
+        echo -e "  ${YELLOW}conda activate ocean_mesh_tools${NC}"
+        exit 1
     fi
     
     cd "$SCRIPT_DIR/tools/grid_editor/scripts"
@@ -267,9 +371,10 @@ cmd_test() {
     
     # Verificar se ambiente está ativo
     if [[ "$CONDA_DEFAULT_ENV" != "ocean_mesh_tools" ]]; then
-        echo -e "${YELLOW}Ativando ambiente conda 'ocean_mesh_tools'...${NC}"
-        eval "$(conda shell.bash hook)"
-        conda activate ocean_mesh_tools
+        echo -e "${YELLOW}⚠ Ambiente conda 'ocean_mesh_tools' não está ativo${NC}"
+        echo "Por favor, ative o ambiente antes de executar:"
+        echo -e "  ${YELLOW}conda activate ocean_mesh_tools${NC}"
+        exit 1
     fi
     
     cd "$SCRIPT_DIR"
@@ -288,6 +393,7 @@ cmd_help() {
     echo -e "  ${GREEN}gebco${NC}                  - Acessar ferramenta de interpolação GEBCO"
     echo -e "  ${GREEN}mask${NC} <netcdf> [opts]  - Extrair máscara de reanálise"
     echo -e "  ${GREEN}apply${NC} <grid> <mask>   - Aplicar máscara em grade"
+    echo -e "  ${GREEN}view${NC} <arquivo> [opts] - Visualizar grade"
     echo -e "  ${GREEN}edit${NC} <arquivo>        - Editar grade interativamente"
     echo -e "  ${GREEN}help${NC}                   - Mostrar esta ajuda"
     echo ""
@@ -295,6 +401,9 @@ cmd_help() {
     echo ""
     echo "  # Configurar ambiente (primeira vez)"
     echo "  ./ocean_mesh_tools.sh env"
+    echo ""
+    echo "  # Ativar ambiente (sempre antes de usar)"
+    echo "  conda activate ocean_mesh_tools"
     echo ""
     echo "  # Executar testes"
     echo "  ./ocean_mesh_tools.sh test"
@@ -308,6 +417,10 @@ cmd_help() {
     echo ""
     echo "  # Aplicar máscara em grade"
     echo "  ./ocean_mesh_tools.sh apply output/rectangular_grid_*.asc output/mask_ocean_*.asc"
+    echo ""
+    echo "  # Visualizar grade"
+    echo "  ./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc"
+    echo "  ./ocean_mesh_tools.sh view output/pom_bathymetry_grid.asc -o figura.png"
     echo ""
     echo "  # Editar grade"
     echo "  ./ocean_mesh_tools.sh edit output/pom_bathymetry_grid.asc"
@@ -355,6 +468,10 @@ case "$1" in
     apply)
         shift
         cmd_apply "$@"
+        ;;
+    view)
+        shift
+        cmd_view "$@"
         ;;
     edit)
         shift
