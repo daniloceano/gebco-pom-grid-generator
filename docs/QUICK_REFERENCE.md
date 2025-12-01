@@ -1,352 +1,252 @@
-# Guia de Referência Rápida - Gerador de Grade Batimétrica POM
+# Guia de Referência Rápida - Ocean Grid Tools
 
 ## 🎯 Comandos Essenciais
 
 ### Configuração Inicial (apenas uma vez)
 ```bash
-./setup_environment.sh
-```
-
-### Ativar Ambiente
-```bash
+conda env create -f environment.yml
 conda activate pom
 ```
 
-### Desativar Ambiente
+### Ativar/Desativar Ambiente
 ```bash
-conda deactivate
+conda activate pom    # Ativar
+conda deactivate      # Desativar
 ```
 
-### Executar com Wrapper (ativa automaticamente)
-```bash
-./run_pom.sh script.py [args]
-```
+## 📋 Fluxo de Trabalho
 
-## 📋 Fluxo de Trabalho Típico
+### 1. Gerar Grade com GEBCO
 
 ```bash
-# 1. Configurar ambiente (primeira vez)
-./setup_environment.sh
+# Entrar no módulo
+cd tools/gebco_interpolation/scripts
 
-# 2. Testar instalação
-./run_pom.sh test_bathymetry_generator.py
+# Editar configurações
+nano generate_grid.py
 
-# 3. Gerar grade (opção A - editar script)
-# Edite create_pom_bathymetry_grid.py
-./run_pom.sh create_pom_bathymetry_grid.py
-
-# 3. Gerar grade (opção B - linha de comando)
-./run_pom.sh quick_generate_grid.py \
-    --lon-min -60 --lon-max -30 \
-    --lat-min -35 --lat-max -5 \
-    --spacing 0.25 \
-    --output minha_grade.asc
-
-# 4. Verificar saída
-head -20 minha_grade.asc
-open minha_grade.png  # Visualizar imagem
+# Executar
+python generate_grid.py
 ```
 
-## 🗺️ Regiões Pré-Definidas
+**O que editar em `generate_grid.py`:**
+```python
+# Extensão geográfica (exemplo: costa brasileira)
+LON_MIN = -60.0   # Longitude oeste
+LON_MAX = -30.0   # Longitude leste
+LAT_MIN = -35.0   # Latitude sul
+LAT_MAX = -5.0    # Latitude norte
+
+# Espaçamento da grade
+GRID_SPACING = 0.25  # 0.25° ≈ 27.8 km
+```
+
+### 2. Editar Grade Interativamente
 
 ```bash
-# Costa Sul/Sudeste do Brasil (-55/-40, -30/-20)
-./run_pom.sh quick_generate_grid.py --region brasil_sul
-
-# Costa Nordeste do Brasil (-45/-32, -18/-3)
-./run_pom.sh quick_generate_grid.py --region brasil_nordeste
-
-# Atlântico Sul-Ocidental (-60/-30, -45/-10)
-./run_pom.sh quick_generate_grid.py --region atlantico_sw
+# Abrir editor
+python edit_grid_interactive.py ../../../output/pom_bathymetry_grid.asc
 ```
 
-## ⚙️ Parâmetros Comuns
+**Controles:**
+- **Click esquerdo**: Alternar terra ↔ água
+- **+** ou **scroll up**: Zoom in
+- **-** ou **scroll down**: Zoom out
+- **r**: Reset do zoom
+- **s**: Salvar modificações
+- **q**: Sair
 
-### Espaçamento da Grade
+### 3. Verificar Saída
 
-| Valor | Resolução    | Uso Recomendado        |
-|-------|--------------|------------------------|
-| 1.0°  | ~111 km      | Oceano aberto, global  |
-| 0.5°  | ~55 km       | Escala regional        |
-| 0.25° | ~28 km       | **Padrão** - balanceado |
-| 0.1°  | ~11 km       | Costeiro, alta res     |
-| 0.05° | ~5.5 km      | Muito detalhado        |
+```bash
+# Ver primeiras linhas
+head -20 ../../../output/pom_bathymetry_grid.asc
+
+# Visualizar (macOS)
+open ../../../output/pom_bathymetry_grid.png
+
+# Visualizar (Linux)
+xdg-open ../../../output/pom_bathymetry_grid.png
+```
+
+## 📐 Guia de Espaçamento
+
+### Tabela de Resolução
+
+| Valor | Resolução no Equador | Uso Recomendado |
+|-------|---------------------|-----------------|
+| 1.0°  | ~111 km            | Oceano aberto, global |
+| 0.5°  | ~55 km             | Escala regional |
+| 0.25° | ~28 km             | **Padrão** - balanceado |
+| 0.1°  | ~11 km             | Costeiro, detalhado |
+| 0.05° | ~5.5 km            | Muito alta resolução |
+
+### Espaçamentos Diferentes (dx ≠ dy)
+
+Se você precisa de resolução diferente em longitude e latitude:
+
+```python
+# Em vez de GRID_SPACING, use:
+SPACING_LON = 0.25  # dx em graus
+SPACING_LAT = 0.20  # dy em graus
+```
+
+## 🗺️ Regiões Exemplo
+
+### Costa Sul/Sudeste do Brasil
+```python
+LON_MIN, LON_MAX = -55.0, -40.0
+LAT_MIN, LAT_MAX = -30.0, -20.0
+GRID_SPACING = 0.1  # Alta resolução costeira
+```
+
+### Costa Nordeste do Brasil
+```python
+LON_MIN, LON_MAX = -45.0, -32.0
+LAT_MIN, LAT_MAX = -18.0, -3.0
+GRID_SPACING = 0.25
+```
+
+### Atlântico Sul-Ocidental
+```python
+LON_MIN, LON_MAX = -60.0, -30.0
+LAT_MIN, LAT_MAX = -45.0, -10.0
+GRID_SPACING = 0.5  # Escala regional
+```
+
+### Região Equatorial
+```python
+LON_MIN, LON_MAX = -50.0, -30.0
+LAT_MIN, LAT_MAX = -10.0, 10.0
+# Maior resolução meridional para correntes equatoriais
+SPACING_LON = 0.30
+SPACING_LAT = 0.15
+```
+
+## ⚙️ Parâmetros Avançados
 
 ### Métodos de Interpolação
 
-| Método   | Velocidade | Qualidade | Uso                |
-|----------|------------|-----------|-------------------|
-| nearest  | ⚡⚡⚡     | ⭐        | Testes rápidos    |
-| linear   | ⚡⚡       | ⭐⭐⭐    | **Padrão** - balanceado |
-| cubic    | ⚡         | ⭐⭐⭐⭐⭐ | Máxima qualidade  |
-
-## 🔧 Exemplos Quick Generate
-
-### Exemplo 1: Básico
-```bash
-./run_pom.sh quick_generate_grid.py \
-    --lon-min -50 --lon-max -40 \
-    --lat-min -30 --lat-max -20 \
-    --spacing 0.25
+Em `generate_grid.py`:
+```python
+INTERPOLATION_METHOD = 'linear'  # Opções: 'linear', 'nearest', 'cubic'
 ```
 
-### Exemplo 2: Com nome customizado
-```bash
-./run_pom.sh quick_generate_grid.py \
-    --region brasil_sul \
-    --spacing 0.1 \
-    --output grade_sul_alta_res.asc \
-    --plot-output grade_sul_alta_res.png
-```
+| Método | Velocidade | Qualidade | Quando Usar |
+|--------|-----------|-----------|-------------|
+| `'linear'` | ⚡⚡ | ⭐⭐⭐ | **Padrão** - bom balanço |
+| `'nearest'` | ⚡⚡⚡ | ⭐ | Testes rápidos |
+| `'cubic'` | ⚡ | ⭐⭐⭐⭐⭐ | Máxima suavidade |
 
-### Exemplo 3: Sem visualização (mais rápido)
-```bash
-./run_pom.sh quick_generate_grid.py \
-    --lon-min -55 --lon-max -45 \
-    --lat-min -28 --lat-max -23 \
-    --spacing 0.25 \
-    --no-plot
-```
-
-### Exemplo 4: Interpolação cubic (melhor qualidade)
-```bash
-./run_pom.sh quick_generate_grid.py \
-    --region brasil_sul \
-    --method cubic \
-    --output grade_cubic.asc
-```
-
-## 📝 Editar Script Principal
-
-Abra `create_pom_bathymetry_grid.py` e modifique:
+### Processamento Paralelo
 
 ```python
-# Linha ~543 - CONFIGURAÇÕES
-
-# Arquivo GEBCO
-GEBCO_FILE = "gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
-
-# Espaçamento (graus)
-GRID_SPACING = 0.25
-
-# Área de interesse
-LON_MIN = -60.0    # Oeste
-LON_MAX = -30.0    # Leste
-LAT_MIN = -35.0    # Sul
-LAT_MAX = -5.0     # Norte
-
-# Arquivo de saída
-OUTPUT_FILE = "pom_bathymetry_grid.asc"
-
-# Visualização
-GENERATE_PLOT = True
-PLOT_FILE = "pom_bathymetry_grid.png"
-
-# Método de interpolação
-INTERPOLATION_METHOD = 'linear'
+USE_PARALLEL = True   # Ativar/desativar paralelização
+N_WORKERS = None      # None = auto (todos os núcleos)
 ```
 
-## 🐍 Uso Programático Python
+## 🐍 Uso Programático
+
+### Exemplo Básico
 
 ```python
-from create_pom_bathymetry_grid import BathymetryGridGenerator
+import sys
+sys.path.insert(0, '../src')
+from bathymetry_generator import BathymetryGridGenerator
 
-# Criar e configurar
-gen = BathymetryGridGenerator("gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc", 
-                              spacing=0.25)
+# Criar gerador
+gen = BathymetryGridGenerator(
+    '../../../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc',
+    spacing=0.25
+)
 
-# Processar
+# Carregar e processar
 gen.load_gebco_data()
 gen.define_grid_extent(-60, -30, -35, -5)
-gen.interpolate_bathymetry(method='linear')
+gen.interpolate_bathymetry(method='linear', parallel=True)
 
 # Exportar
-gen.export_to_ascii("minha_grade.asc")
-gen.plot_bathymetry("minha_grade.png")
-gen.cleanup()
+gen.export_to_ascii('../../../output/grade.asc')
+gen.plot_bathymetry('../../../output/grade.png')
 ```
 
-## 🧪 Testes e Validação
-
-```bash
-# Teste completo
-./run_pom.sh test_bathymetry_generator.py
-
-# Verificar dependências apenas
-conda activate pom
-python -c "import numpy, scipy, xarray, netCDF4, matplotlib; print('OK')"
-
-# Verificar arquivo GEBCO
-ls -lh gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc
-
-# Verificar ambiente conda
-conda env list | grep pom
-```
-
-## 📊 Verificar Saída
-
-```bash
-# Ver cabeçalho do arquivo
-head -20 minha_grade.asc
-
-# Contar linhas de dados
-grep -v "^#" minha_grade.asc | wc -l
-
-# Ver últimas linhas
-tail -10 minha_grade.asc
-
-# Verificar tamanho
-ls -lh minha_grade.asc
-
-# Abrir imagem (macOS)
-open minha_grade.png
-
-# Ou (Linux)
-xdg-open minha_grade.png
-```
-
-## 🔍 Análise Rápida em Python
+### Exemplo com dx ≠ dy
 
 ```python
-import numpy as np
-
-# Carregar dados
-data = np.loadtxt('minha_grade.asc')
-i, j, lon, lat, depth = data.T
-
-# Estatísticas
-print(f"Pontos: {len(depth)}")
-print(f"Oceano: {np.sum(depth > 0)} ({100*np.sum(depth > 0)/len(depth):.1f}%)")
-print(f"Prof. max: {np.max(depth):.1f} m")
-print(f"Prof. média: {np.mean(depth[depth > 0]):.1f} m")
-print(f"Extensão lon: {lon.min():.2f} a {lon.max():.2f}")
-print(f"Extensão lat: {lat.min():.2f} a {lat.max():.2f}")
+gen = BathymetryGridGenerator(
+    'gebco.nc',
+    spacing_lon=0.30,  # dx = 0.30°
+    spacing_lat=0.15   # dy = 0.15°
+)
 ```
 
-## 🛠️ Manutenção do Ambiente
+## 📊 Formato de Saída
 
-```bash
-# Listar ambientes
-conda env list
+### Estrutura do Arquivo ASCII
 
-# Listar pacotes instalados
-conda activate pom
-conda list
-
-# Atualizar pacotes
-conda activate pom
-conda update --all
-
-# Atualizar pacote específico
-conda activate pom
-conda update numpy
-
-# Adicionar novo pacote
-conda activate pom
-conda install nome-pacote
-# ou
-pip install nome-pacote
-
-# Remover ambiente (se necessário)
-conda deactivate
-conda env remove -n pom
-
-# Recriar ambiente
-./setup_environment.sh
+```
+# Gerado em: 2025-12-01 10:30:00
+# Região: Lon [-60.0, -30.0], Lat [-35.0, -5.0]
+# Espaçamento: 0.25° lon, 0.25° lat
+# Dimensões: 121 x 121 pontos
+    1    1  -60.0000  -35.0000    0.0000
+    1    2  -60.0000  -34.7500  245.3000
+    1    3  -60.0000  -34.5000  512.7000
+    ...
 ```
 
-## 💾 Exportar/Importar Ambiente
+**5 colunas**: `i, j, lon, lat, depth`
 
+**Convenção**: depth > 0 = oceano, depth = 0 = terra
+
+## 🔍 Troubleshooting Rápido
+
+### Arquivo GEBCO não encontrado
 ```bash
-# Exportar configuração atual
-conda activate pom
-conda env export > environment_backup.yml
+# Verificar caminho
+ls ../../../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc
 
-# Recriar em outra máquina
-conda env create -f environment_backup.yml
-conda activate pom
-```
-
-## ⚠️ Problemas Comuns
-
-### Script não executa
-```bash
-# Dar permissão de execução
-chmod +x setup_environment.sh run_pom.sh
-```
-
-### Conda não encontrado
-```bash
-# Adicionar ao PATH
-export PATH="$HOME/miniconda3/bin:$PATH"
-source ~/.zshrc
-```
-
-### Ambiente não ativa
-```bash
-# Inicializar conda no shell
-conda init zsh
-source ~/.zshrc
+# Ajustar em generate_grid.py se necessário
+GEBCO_FILE = "../../../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
 ```
 
 ### Erro de memória
 ```python
-# Reduzir área ou aumentar espaçamento
-LON_MIN, LON_MAX = -50, -40  # Área menor
-GRID_SPACING = 0.5           # Maior espaçamento
+# Aumentar espaçamento ou reduzir área
+GRID_SPACING = 0.5  # Em vez de 0.25
 ```
 
-### Processo muito lento
+### Interpolação muito lenta
 ```python
-# Usar método mais rápido
-INTERPOLATION_METHOD = 'linear'  # ou 'nearest'
-GRID_SPACING = 0.5               # Maior espaçamento
+# Ativar paralelização
+USE_PARALLEL = True
 ```
 
-## 📁 Arquivos Importantes
-
-| Arquivo                          | Descrição                           |
-|----------------------------------|-------------------------------------|
-| `create_pom_bathymetry_grid.py` | Script principal (completo)         |
-| `quick_generate_grid.py`        | Script rápido (CLI)                 |
-| `test_bathymetry_generator.py`  | Validação e testes                  |
-| `setup_environment.sh`          | Instalação do ambiente              |
-| `run_pom.sh`                    | Wrapper de execução                 |
-| `environment.yml`               | Definição conda                     |
-| `requirements.txt`              | Dependências pip                    |
-| `README.md`                     | Documentação principal              |
-| `INSTALL.md`                    | Guia de instalação                  |
-| `README_BATHYMETRY_GRID.md`     | Documentação técnica                |
-| `QUICK_REFERENCE.md`            | Este arquivo                        |
-
-## 🔗 Links Úteis
-
-- GEBCO: https://www.gebco.net/
-- POM: http://www.ccpo.odu.edu/POMWEB/
-- Conda: https://docs.conda.io/
-- Xarray: https://docs.xarray.dev/
-
-## 📞 Ajuda
-
+### Grade com terra onde deveria ser oceano
 ```bash
-# Ver ajuda do script rápido
-./run_pom.sh quick_generate_grid.py --help
-
-# Ver código-fonte
-less create_pom_bathymetry_grid.py
-
-# Ver documentação
-cat README.md
-cat INSTALL.md
+# Usar editor interativo para corrigir
+python edit_grid_interactive.py ../../../output/pom_bathymetry_grid.asc
 ```
 
----
+## 📁 Estrutura de Arquivos
 
-**Dica:** Adicione este atalho ao seu `~/.zshrc`:
-```bash
-alias pom="conda activate pom"
-alias pom-test="conda activate pom && python test_bathymetry_generator.py"
-alias pom-gen="conda activate pom && python quick_generate_grid.py"
+```
+tools/gebco_interpolation/
+├── README.md                    # Documentação completa
+├── src/
+│   └── bathymetry_generator.py  # Classe principal
+├── scripts/
+│   ├── generate_grid.py         # ← Editar e executar
+│   ├── edit_grid_interactive.py # ← Editor visual
+│   └── quick_generate.py        # CLI rápido
+└── examples/
+    ├── example_basic.py
+    ├── example_advanced.py
+    └── generate_grid_different_spacing.py
 ```
 
-Depois use simplesmente: `pom`, `pom-test`, `pom-gen --help`
+## 🔗 Ver Também
+
+- **[README Principal](../../README.md)** - Visão geral do projeto
+- **[GEBCO Interpolation README](../tools/gebco_interpolation/README.md)** - Doc detalhada
+- **[INSTALL.md](INSTALL.md)** - Guia de instalação completo

@@ -1,257 +1,143 @@
-# GEBCO to POM Grid Generator
+# Ocean Grid Tools
 
-Generator de grades batimétricas do GEBCO para o modelo POM (Princeton Ocean Model).
+Ferramentas para geração de grades retangulares para modelos oceânicos.
 
 ## 📋 Sobre
 
-Este projeto fornece ferramentas para criar grades batimétricas interpoladas a partir dos dados globais do GEBCO para uso no modelo POM. O sistema inclui:
+Este é um conjunto de ferramentas (toolkit) para auxiliar na criação e manipulação de grades retangulares utilizadas em modelos oceânicos numéricos. O projeto é modular, permitindo adicionar novas funcionalidades de forma independente.
 
+## 🗂️ Ferramentas Disponíveis
+
+### 1. Interpolação de Dados GEBCO
+
+Interpola dados batimétricos globais do GEBCO para criar grades regulares customizadas.
+
+**Localização**: `tools/gebco_interpolation/`
+
+**Características**:
 - ✨ Interpolação de alta qualidade dos dados batimétricos
-- 🚀 Processamento paralelo para melhor performance
-- 📐 Grade regular customizável com espaçamento definido pelo usuário
-- � **NOVO:** Suporte a espaçamentos diferentes para dx e dy
-- 🖱️ **NOVO:** Editor interativo de grade com zoom e click-to-edit
-- �📝 Formato ASCII compatível com POM
-- 🖼️ Visualização automática da batimetria
-- 🔧 Ambiente conda isolado
+- 🚀 Processamento paralelo para grandes áreas
+- 📐 Espaçamentos diferentes para dx e dy
+- 🖱️ Editor interativo para correções manuais
+- 📝 Formato ASCII simples (5 colunas: i, j, lon, lat, depth)
 
-## 🗂️ Estrutura do Projeto
+**Uso rápido**:
+```bash
+cd tools/gebco_interpolation/scripts
+python generate_grid.py
+```
 
-```
-POM/
-├── src/                          # Código-fonte principal
-│   ├── __init__.py
-│   └── bathymetry_generator.py   # Classe principal (paralelizada)
-│
-├── scripts/                      # Scripts executáveis
-│   ├── generate_grid.py          # Script principal configurável
-│   ├── quick_generate.py         # Interface CLI rápida
-│   ├── edit_grid_interactive.py  # Editor interativo (NOVO)
-│   ├── setup_environment.sh      # Instalação do ambiente conda
-│   ├── run_pom.sh                # Wrapper de execução
-│   └── pom.sh                    # Script mestre
-│
-├── examples/                     # Exemplos de uso
-│   ├── example_basic.py          # Uso básico
-│   ├── example_advanced.py       # Uso avançado com customizações
-│   └── generate_grid_different_spacing.py  # dx ≠ dy (NOVO)
-│
-├── tests/                        # Testes e validação
-│   └── test_bathymetry_generator.py
-│
-├── docs/                         # Documentação completa
-│   ├── README.md                 # Documentação principal
-│   ├── INSTALL.md                # Guia de instalação
-│   ├── QUICK_REFERENCE.md        # Referência rápida
-│   ├── INTERACTIVE_EDITOR.md     # Guia do editor interativo (NOVO)
-│   └── ...
-│
-├── output/                       # Diretório para arquivos gerados
-│
-├── gebco_2025_sub_ice_topo/      # Dados do GEBCO
-│   └── GEBCO_2025_sub_ice.nc
-│
-├── environment.yml               # Configuração do ambiente conda
-├── requirements.txt              # Dependências Python
-├── .gitignore                    # Arquivos ignorados pelo git
-└── LICENSE                       # Licença do projeto
-```
+👉 **[Ver documentação completa](tools/gebco_interpolation/README.md)**
+
+---
+
+### 2. [Futuras Ferramentas]
+
+Espaço reservado para novas funcionalidades de geração de grades.
 
 ## 🚀 Início Rápido
 
-### 1. Instalação
+### 1. Instalação do Ambiente
 
 ```bash
-# Configurar ambiente conda
-cd scripts
-./setup_environment.sh
-
-# Ou manualmente
+# Criar ambiente conda com todas as dependências
 conda env create -f environment.yml
 conda activate pom
 ```
 
-### 2. Uso Básico
+### 2. Download dos Dados GEBCO
+
+Faça download em: https://www.gebco.net/data_and_products/gridded_bathymetry_data/
+
+Coloque o arquivo NetCDF em `gebco_2025_sub_ice_topo/`
+
+### 3. Usar uma Ferramenta
+
+Cada ferramenta tem seu próprio diretório em `tools/` com README específico:
 
 ```bash
-# Opção A: Script rápido com CLI
+# Exemplo: Interpolação GEBCO
+cd tools/gebco_interpolation
+cat README.md  # Ler instruções
 cd scripts
-./pom.sh quick --region brasil_sul
-
-# Opção B: Script principal (edite parâmetros no arquivo)
-./pom.sh run
-
-# Opção C: Editor interativo (NOVO)
-./pom.sh edit ../output/pom_bathymetry_grid.asc
-
-# Opção D: Python direto
-conda activate pom
-python quick_generate.py --help
+python generate_grid.py
 ```
 
-### 3. Exemplos
+## 📚 Documentação
 
-```bash
-# Ver exemplos prontos
-cd examples
-python example_basic.py
-python example_advanced.py
-```
+- **Documentação geral**: [`docs/`](docs/)
+- **Documentação por ferramenta**: `tools/[nome_ferramenta]/README.md`
 
-## 📖 Documentação
+### Documentos principais
 
-A documentação completa está em `docs/`:
+| Documento | Descrição |
+|-----------|-----------|
+| [INSTALL.md](docs/INSTALL.md) | Guia detalhado de instalação |
+| [QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) | Referência rápida de comandos |
 
-- **[INSTALL.md](docs/INSTALL.md)** - Guia detalhado de instalação
-- **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Referência rápida de comandos
-- **[INTERACTIVE_EDITOR.md](docs/INTERACTIVE_EDITOR.md)** - **NOVO:** Guia do editor interativo
-- **[README.md](docs/README.md)** - Documentação técnica completa
-
-## 🛠️ Requisitos
-
-- **Conda** (Anaconda ou Miniconda)
-- **Python 3.10+**
-- **Dependências:** numpy, scipy, xarray, netCDF4, matplotlib
-
-## 💡 Exemplos de Uso
-
-### Interface CLI
-
-```bash
-# Região pré-definida
-python scripts/quick_generate.py --region brasil_sul
-
-# Região customizada
-python scripts/quick_generate.py \
-    --lon-min -60 --lon-max -30 \
-    --lat-min -35 --lat-max -5 \
-    --spacing 0.25
-
-# Com paralelização customizada
-python scripts/quick_generate.py \
-    --region atlantico_sw \
-    --workers 4 \
-    --method cubic
-```
-
-### API Python
-
-```python
-from src.bathymetry_generator import BathymetryGridGenerator
-
-# Exemplo 1: Mesmo espaçamento (dx = dy)
-gen = BathymetryGridGenerator("gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc", 
-                              spacing=0.25, n_workers=4)
-
-# Exemplo 2: Espaçamentos diferentes (dx ≠ dy) - NOVO
-gen = BathymetryGridGenerator("gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc",
-                              spacing_lon=0.30,  # dx
-                              spacing_lat=0.20,  # dy
-                              n_workers=4)
-
-# Processar
-gen.load_gebco_data()
-gen.define_grid_extent(-60, -30, -35, -5)
-gen.interpolate_bathymetry(method='linear', parallel=True)
-gen.export_to_ascii("output/my_grid.asc")
-gen.plot_bathymetry("output/my_grid.png")
-gen.cleanup()
-```
-
-### Editor Interativo (NOVO)
-
-```bash
-# Gerar grade inicial
-./scripts/pom.sh run
-
-# Editar interativamente
-./scripts/pom.sh edit ../output/pom_bathymetry_grid.asc
-
-# Controles:
-# - Click esquerdo: Alternar terra/água
-# - +/- ou scroll: Zoom in/out
-# - r: Reset zoom
-# - s: Salvar
-# - q: Sair
-```
-
-Veja [INTERACTIVE_EDITOR.md](docs/INTERACTIVE_EDITOR.md) para guia completo.
-
-## 📊 Formato de Saída
-
-Arquivo ASCII com 5 colunas:
+## 🔧 Estrutura do Projeto
 
 ```
-#  i      j        lon        lat      depth
-   1      1   -60.0000   -35.0000      45.32
-   2      1   -59.7500   -35.0000     123.45
-   ...
+ocean-grid-tools/
+├── tools/                        # Ferramentas disponíveis
+│   └── gebco_interpolation/      # Interpolação de dados GEBCO
+│       ├── README.md             # Doc específica desta ferramenta
+│       ├── src/                  # Código-fonte
+│       ├── scripts/              # Scripts executáveis
+│       └── examples/             # Exemplos de uso
+│
+├── docs/                         # Documentação geral
+│   ├── INSTALL.md
+│   ├── QUICK_REFERENCE.md
+│   └── ...
+│
+├── gebco_2025_sub_ice_topo/      # Dados GEBCO (não versionado)
+├── output/                       # Arquivos gerados
+│
+├── environment.yml               # Ambiente conda
+├── requirements.txt              # Dependências Python
+└── README.md                     # Este arquivo
 ```
 
-- **i**: índice da coluna (1 a n_cols)
-- **j**: índice da linha (1 a n_rows)  
-- **lon**: longitude em graus decimais
-- **lat**: latitude em graus decimais
-- **depth**: profundidade em metros (positivo = oceano)
+## 🎯 Filosofia do Projeto
 
-## 🔬 Características Técnicas
+Este é um projeto **modular** e **pragmático**:
 
-### Processamento Paralelo
+- ✅ Cada ferramenta é independente
+- ✅ Documentação objetiva e prática
+- ✅ Exemplos didáticos para usuários com Python básico
+- ✅ Foco em funcionalidade, não em formalidades
 
-A versão 2.0 inclui suporte a processamento paralelo:
+## 🛠️ Tecnologias
 
-- Divisão automática do trabalho entre múltiplos cores
-- Speedup típico de 2-4x em máquinas multi-core
-- Configurável via parâmetro `n_workers`
+- **Python 3.8+**
+- **numpy** - Computação numérica
+- **scipy** - Interpolação
+- **xarray** - Manipulação de dados NetCDF
+- **netCDF4** - Leitura de dados GEBCO
+- **matplotlib** - Visualização e editor interativo
 
-### Métodos de Interpolação
+## 📝 Como Adicionar Nova Ferramenta
 
-- **linear**: Balanço entre velocidade e qualidade (padrão)
-- **nearest**: Mais rápido, menos suave
-- **cubic**: Melhor qualidade, mais lento
+1. Criar diretório em `tools/nome_da_ferramenta/`
+2. Seguir estrutura padrão: `src/`, `scripts/`, `examples/`
+3. Criar README.md sucinto explicando:
+   - O que faz
+   - Como usar
+   - Parâmetros principais
+   - Exemplos práticos
+4. Atualizar este README principal
+5. Adicionar ao environment.yml se houver novas dependências
 
-## 🧪 Testes
+## 📄 Licença
 
-```bash
-# Executar suite de testes
-cd scripts
-./pom.sh test
+MIT License - veja [LICENSE](LICENSE)
 
-# Ou diretamente
-conda activate pom
-python tests/test_bathymetry_generator.py
-```
+## 👤 Autor
 
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Por favor:
-
-1. Fork o projeto
-2. Crie uma branch para sua feature
-3. Commit suas mudanças
-4. Push para a branch
-5. Abra um Pull Request
-
-## 📜 Licença
-
-Este projeto é fornecido sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para detalhes.
+Projeto pessoal desenvolvido para auxiliar na geração de grades para modelagem oceânica.
 
 ## 🔗 Links Úteis
 
-- [GEBCO](https://www.gebco.net/)
-- [Modelo POM](http://www.ccpo.odu.edu/POMWEB/)
-- [Documentação Xarray](https://docs.xarray.dev/)
-
-## 📞 Suporte
-
-Para questões ou problemas:
-
-1. Consulte a [documentação](docs/)
-2. Execute `./scripts/pom.sh test` para diagnóstico
-3. Abra uma issue no GitHub
-
----
-
-**Versão:** 2.0.0  
-**Status:** Ativo  
-**Última atualização:** Outubro 2025
+- [GEBCO](https://www.gebco.net/) - General Bathymetric Chart of the Oceans
+- [Princeton Ocean Model](https://www.ccpo.odu.edu/~klinck/Reprints/PDF/mellor2004.pdf) - POM Reference
