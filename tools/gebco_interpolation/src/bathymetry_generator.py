@@ -440,7 +440,7 @@ Formato: i (col), j (row), longitude (°), latitude (°), profundidade (m)
     
     def plot_bathymetry(self, output_file=None):
         """
-        Cria uma visualização da batimetria interpolada.
+        Cria uma visualização da batimetria interpolada, com linha de costa usando Cartopy se disponível.
         
         Parameters:
             output_file (str): Caminho para salvar a figura (opcional)
@@ -448,58 +448,62 @@ Formato: i (col), j (row), longitude (°), latitude (°), profundidade (m)
         try:
             import matplotlib.pyplot as plt
             from matplotlib.colors import LinearSegmentedColormap
-            
+            import cartopy.crs as ccrs
+            import cartopy.feature as cfeature
+
             if self.depth_grid is None:
                 print("ERRO: Dados interpolados não disponíveis.")
                 return False
-            
+
             print("\nGerando visualização da batimetria...")
-            
-            fig, ax = plt.subplots(figsize=(12, 8))
-            
+
+            # Usar Cartopy se disponível
+            proj = ccrs.PlateCarree()
+            fig, ax = plt.subplots(figsize=(12, 8), subplot_kw={'projection': proj})
+            ax.set_extent([self.lon_min, self.lon_max, self.lat_min, self.lat_max], crs=proj)
+            # Adicionar linha de costa
+            ax.add_feature(cfeature.COASTLINE, linewidth=2, edgecolor='black')
+            ax.add_feature(cfeature.BORDERS, linestyle=':', edgecolor='gray')
+            ax.add_feature(cfeature.LAND, facecolor='lightgray')
             # Criar mapa de cores apropriado (azul para oceano)
             colors_ocean = plt.cm.Blues_r(np.linspace(0.2, 1, 256))
             cmap_ocean = LinearSegmentedColormap.from_list('ocean', colors_ocean)
-            
+
             # Plotar batimetria
             lon_mesh, lat_mesh = np.meshgrid(self.grid_lons, self.grid_lats)
-            
-            # Mascarar terra
             depth_masked = np.ma.masked_where(self.depth_grid == 0, self.depth_grid)
-            
-            im = ax.pcolormesh(lon_mesh, lat_mesh, depth_masked, 
-                              cmap=cmap_ocean, shading='auto')
-            
+
+            im = ax.pcolormesh(lon_mesh, lat_mesh, depth_masked,
+                               cmap=cmap_ocean, shading='auto', transform=ccrs.PlateCarree())
             # Adicionar contornos de profundidade
             if np.max(self.depth_grid) > 0:
                 contour_levels = np.linspace(0, np.max(self.depth_grid), 10)
-                cs = ax.contour(lon_mesh, lat_mesh, self.depth_grid, 
-                               levels=contour_levels, colors='gray', 
-                               alpha=0.3, linewidths=0.5)
+                cs = ax.contour(lon_mesh, lat_mesh, self.depth_grid,
+                                levels=contour_levels, colors='gray',
+                                alpha=0.3, linewidths=0.5, transform=ccrs.PlateCarree())
                 ax.clabel(cs, inline=True, fontsize=8, fmt='%d m')
-            
+
             # Formatação
             ax.set_xlabel('Longitude (°)', fontsize=12)
             ax.set_ylabel('Latitude (°)', fontsize=12)
-            ax.set_title(f'Grade Batimétrica - Espaçamento {self.spacing}°', 
+            ax.set_title(f'Grade Batimétrica - Espaçamento {self.spacing}°',
                         fontsize=14, fontweight='bold')
             ax.grid(True, alpha=0.3)
-            ax.set_aspect('equal')
-            
+
             # Barra de cores
             cbar = plt.colorbar(im, ax=ax, label='Profundidade (m)')
-            
+
             plt.tight_layout()
-            
+
             if output_file:
                 plt.savefig(output_file, dpi=300, bbox_inches='tight')
                 print(f"✓ Figura salva em: {output_file}")
             else:
                 plt.show()
-            
+
             plt.close()
             return True
-            
+
         except ImportError:
             print("Matplotlib não disponível. Pulando visualização.")
             return False

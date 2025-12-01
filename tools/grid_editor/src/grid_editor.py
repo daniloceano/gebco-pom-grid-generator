@@ -46,15 +46,8 @@ import sys
 import os
 from datetime import datetime
 import argparse
-
-# Tentar importar cartopy (opcional)
-try:
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    HAS_CARTOPY = True
-except ImportError:
-    HAS_CARTOPY = False
-    print("Aviso: cartopy não encontrado. Linha de costa será simplificada.")
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 
 class GridEditor:
@@ -62,19 +55,17 @@ class GridEditor:
     Editor interativo de grades com interface gráfica avançada.
     """
     
-    def __init__(self, grid_file, use_cartopy=True, show_contours=True):
+    def __init__(self, grid_file, show_contours=True):
         """
         Inicializa o editor.
         
         Parameters:
             grid_file (str): Caminho para o arquivo ASCII da grade
-            use_cartopy (bool): Usar cartopy para linha de costa real
             show_contours (bool): Mostrar contornos batimétricos
         """
         self.grid_file = grid_file
         self.backup_file = grid_file.replace('.asc', '_backup.asc')
         self.modified = False
-        self.use_cartopy = use_cartopy and HAS_CARTOPY
         self.enable_contours = show_contours
         
         # Carregar dados
@@ -104,10 +95,7 @@ class GridEditor:
         print("  's': Salvar modificações")
         print("  'q': Sair")
         print("="*70)
-        if self.use_cartopy:
-            print("✓ Usando linha de costa real (Cartopy)")
-        else:
-            print("⚠ Linha de costa simplificada (instale cartopy para melhor visualização)")
+        print("✓ Usando linha de costa real (Cartopy)")
         print("="*70 + "\n")
     
     def load_grid(self):
@@ -166,11 +154,13 @@ class GridEditor:
         self.lons = np.unique(self.lon_data)
         self.lats = np.unique(self.lat_data)
         
-        self.depth = np.zeros((ni, nj))
+        # Criar grade 2D corretamente: [lat, lon] = [nj, ni]
+        self.depth = np.zeros((nj, ni))
         for idx in range(len(data)):
             i = self.indices_i[idx] - 1  # Converter para índice 0-based
             j = self.indices_j[idx] - 1
-            self.depth[i, j] = self.depth_data[idx]
+            # depth[j, i] porque j é índice de latitude e i de longitude
+            self.depth[j, i] = self.depth_data[idx]
         
         # Calcular espaçamento
         self.cellsize_lon = np.diff(self.lons).mean() if len(self.lons) > 1 else 0.25
@@ -186,15 +176,12 @@ class GridEditor:
     
     def setup_figure(self):
         """
-        Configura a figura matplotlib com ou sem cartopy.
+        Configura a figura matplotlib com cartopy.
         """
-        if self.use_cartopy:
-            # Usar projeção PlateCarree (lat/lon simples)
-            self.projection = ccrs.PlateCarree()
-            self.fig = plt.figure(figsize=(14, 10))
-            self.ax = plt.subplot(111, projection=self.projection)
-        else:
-            self.fig, self.ax = plt.subplots(figsize=(14, 10))
+        # Usar projeção PlateCarree (lat/lon simples)
+        self.projection = ccrs.PlateCarree()
+        self.fig = plt.figure(figsize=(14, 10))
+        self.ax = plt.subplot(111, projection=self.projection)
         
         self.update_plot()
         
@@ -211,44 +198,21 @@ class GridEditor:
         """
         self.ax.clear()
         
-        # Preparar dados para visualização
-        # Terra = cinza, Oceano = batimetria
-        depth_plot = self.depth.copy()
+        # Definir extensão do mapa
+        self.ax.set_extent([self.lons.min(), self.lons.max(), 
+                           self.lats.min(), self.lats.max()], crs=self.projection)
         
-        # Criar máscara para terra
-        is_land = depth_plot <= 0
+        # Preparar dados para visualização usando meshgrid como no bathymetry_generator
+        lon_mesh, lat_mesh = np.meshgrid(self.lons, self.lats)
         
-        # Preparar edges para pcolormesh
-        lon_edges = np.concatenate([self.lons - self.cellsize_lon/2, 
-                                    [self.lons[-1] + self.cellsize_lon/2]])
-        lat_edges = np.concatenate([self.lats - self.cellsize_lat/2, 
-                                    [self.lats[-1] + self.cellsize_lat/2]])
+        # Mascarar oceano (depth == 0 é terra)
+        depth_masked = np.ma.masked_where(self.depth == 0, self.depth)
         
-        # Plot terra (cinza)
-        land_plot = np.ma.masked_where(~is_land, depth_plot)
-        land_plot = np.ma.masked_invalid(land_plot)
-        
-        if self.use_cartopy:
-            self.ax.pcolormesh(lon_edges, lat_edges, land_plot,
-                              cmap='Greys', vmin=-1, vmax=1,
-                              shading='flat', transform=self.projection)
-        else:
-            self.ax.pcolormesh(lon_edges, lat_edges, land_plot,
-                              cmap='Greys', vmin=-1, vmax=1,
-                              shading='flat')
-        
-        # Plot oceano (batimetria)
-        ocean_plot = np.ma.masked_where(is_land, depth_plot)
-        
-        if self.use_cartopy:
-            im = self.ax.pcolormesh(lon_edges, lat_edges, ocean_plot,
-                                   cmap='Blues_r', shading='flat',
-                                   vmin=0, vmax=6000,
-                                   transform=self.projection)
-        else:
-            im = self.ax.pcolormesh(lon_edges, lat_edges, ocean_plot,
-                                   cmap='Blues_r', shading='flat',
-                                   vmin=0, vmax=6000)
+        # Plot batimetria (apenas oceano)
+        im = self.ax.pcolormesh(lon_mesh, lat_mesh, depth_masked,
+                               cmap='Blues_r', shading='auto',
+                               vmin=0, vmax=6000,
+                               transform=self.projection)
         
         # Contornos batimétricos
         if self.show_bathy_contours and self.enable_contours:
@@ -256,10 +220,7 @@ class GridEditor:
         
         # Linha de costa
         if self.show_coastline:
-            if self.use_cartopy:
-                self.draw_cartopy_coastline()
-            else:
-                self.draw_simple_coastline()
+            self.draw_cartopy_coastline()
         
         # Grade de células
         if self.show_grid:
@@ -289,8 +250,10 @@ class GridEditor:
             self.ax.set_xlim(self.lons.min() - margin_lon, self.lons.max() + margin_lon)
             self.ax.set_ylim(self.lats.min() - margin_lat, self.lats.max() + margin_lat)
         
-        if not self.use_cartopy:
-            self.ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+        # Grid com labels
+        gl = self.ax.gridlines(draw_labels=True, alpha=0.3, linestyle='--', linewidth=0.5)
+        gl.top_labels = False
+        gl.right_labels = False
         
         self.fig.canvas.draw()
     
@@ -298,50 +261,26 @@ class GridEditor:
         """
         Desenha linha de costa real usando Cartopy.
         """
-        try:
-            # Adicionar features do cartopy
-            self.ax.add_feature(cfeature.COASTLINE, edgecolor='red', linewidth=1.5, zorder=5)
-            self.ax.add_feature(cfeature.BORDERS, edgecolor='darkred', linewidth=0.5, 
-                              linestyle='--', alpha=0.5, zorder=5)
-            
-            # Opcional: adicionar rios principais
-            # self.ax.add_feature(cfeature.RIVERS, edgecolor='blue', linewidth=0.5, alpha=0.5)
-        except Exception as e:
-            print(f"Aviso: Erro ao desenhar coastline do Cartopy: {e}")
-            self.draw_simple_coastline()
-    
-    def draw_simple_coastline(self):
-        """
-        Desenha linha de costa simplificada (contorno depth=0).
-        """
-        try:
-            cs = self.ax.contour(self.lons, self.lats, self.depth,
-                               levels=[0.5], colors='red', linewidths=2, zorder=5)
-            # self.ax.clabel(cs, inline=True, fontsize=8, fmt='Costa')
-        except Exception as e:
-            print(f"Aviso: Não foi possível desenhar linha de costa: {e}")
+        # Adicionar features do cartopy
+        self.ax.add_feature(cfeature.LAND, facecolor='lightgray', zorder=3)
+        self.ax.add_feature(cfeature.COASTLINE, edgecolor='red', linewidth=2, zorder=5)
+        self.ax.add_feature(cfeature.BORDERS, edgecolor='darkred', linewidth=0.5, 
+                          linestyle='--', alpha=0.5, zorder=5)
     
     def draw_bathymetry_contours(self):
         """
         Desenha contornos de batimetria.
         """
-        try:
-            # Contornos a cada 1000m até 6000m
-            levels = [500, 1000, 2000, 3000, 4000, 5000, 6000]
-            
-            if self.use_cartopy:
-                cs = self.ax.contour(self.lons, self.lats, self.depth,
-                                   levels=levels, colors='navy', linewidths=0.5,
-                                   alpha=0.4, transform=self.projection, zorder=4)
-            else:
-                cs = self.ax.contour(self.lons, self.lats, self.depth,
-                                   levels=levels, colors='navy', linewidths=0.5,
-                                   alpha=0.4, zorder=4)
-            
-            # Labels nos contornos
-            self.ax.clabel(cs, inline=True, fontsize=7, fmt='%dm')
-        except Exception as e:
-            print(f"Aviso: Erro ao desenhar contornos batimétricos: {e}")
+        # Contornos a cada 1000m até 6000m
+        levels = [500, 1000, 2000, 3000, 4000, 5000, 6000]
+        
+        lon_mesh, lat_mesh = np.meshgrid(self.lons, self.lats)
+        cs = self.ax.contour(lon_mesh, lat_mesh, self.depth,
+                           levels=levels, colors='gray', linewidths=0.5,
+                           alpha=0.3, transform=self.projection, zorder=4)
+        
+        # Labels nos contornos
+        self.ax.clabel(cs, inline=True, fontsize=8, fmt='%d m')
     
     def draw_grid(self):
         """
@@ -370,43 +309,43 @@ class GridEditor:
         Encontra a célula mais próxima de um ponto clicado.
         
         Returns:
-            tuple: (i, j) índices da célula
+            tuple: (j, i) índices da célula (j=lat, i=lon)
         """
-        i = np.argmin(np.abs(self.lats - lat))
-        j = np.argmin(np.abs(self.lons - lon))
-        return i, j
+        j = np.argmin(np.abs(self.lats - lat))
+        i = np.argmin(np.abs(self.lons - lon))
+        return j, i
     
-    def interpolate_from_neighbors(self, i, j, max_radius=5):
+    def interpolate_from_neighbors(self, j, i, max_radius=5):
         """
         Interpola profundidade das células vizinhas válidas (água).
         
         Usa IDW - Inverse Distance Weighting.
         
         Parameters:
-            i, j: Índices da célula
+            j, i: Índices da célula (j=lat, i=lon)
             max_radius: Raio máximo de busca
             
         Returns:
             float: Profundidade interpolada ou valor padrão
         """
-        ni, nj = self.depth.shape
+        nj, ni = self.depth.shape
         
         # Buscar vizinhos válidos (profundidade > 0 = água)
         neighbors = []
         weights = []
         
         for radius in range(1, max_radius + 1):
-            for di in range(-radius, radius + 1):
-                for dj in range(-radius, radius + 1):
-                    ni_check = i + di
-                    nj_check = j + dj
+            for dj in range(-radius, radius + 1):
+                for di in range(-radius, radius + 1):
+                    j_check = j + dj
+                    i_check = i + di
                     
-                    if (0 <= ni_check < ni and 0 <= nj_check < nj and 
-                        (di != 0 or dj != 0)):
-                        depth_val = self.depth[ni_check, nj_check]
+                    if (0 <= j_check < nj and 0 <= i_check < ni and 
+                        (dj != 0 or di != 0)):
+                        depth_val = self.depth[j_check, i_check]
                         
                         if depth_val > 0:  # Água
-                            distance = np.sqrt(di**2 + dj**2)
+                            distance = np.sqrt(dj**2 + di**2)
                             neighbors.append(depth_val)
                             weights.append(1.0 / (distance ** 2))
             
@@ -424,28 +363,28 @@ class GridEditor:
             print(f"  Nenhum vizinho válido encontrado. Usando profundidade padrão: 100m")
             return 100.0
     
-    def toggle_cell(self, i, j):
+    def toggle_cell(self, j, i):
         """
         Alterna uma célula entre terra e água.
         
         Parameters:
-            i, j: Índices da célula
+            j, i: Índices da célula (j=lat, i=lon)
         """
-        current_depth = self.depth[i, j]
-        lon = self.lons[j]
-        lat = self.lats[i]
+        current_depth = self.depth[j, i]
+        lon = self.lons[i]
+        lat = self.lats[j]
         
         if current_depth <= 0:
             # Terra → Água: interpolar profundidade
             print(f"\nConvertendo terra → água em ({lon:.2f}°, {lat:.2f}°)")
-            new_depth = self.interpolate_from_neighbors(i, j)
-            self.depth[i, j] = new_depth
+            new_depth = self.interpolate_from_neighbors(j, i)
+            self.depth[j, i] = new_depth
             print(f"✓ Nova profundidade: {new_depth:.2f}m")
         else:
             # Água → Terra
             print(f"\nConvertendo água → terra em ({lon:.2f}°, {lat:.2f}°)")
             print(f"  Profundidade antiga: {current_depth:.2f}m")
-            self.depth[i, j] = 0.0
+            self.depth[j, i] = 0.0
             print(f"✓ Agora é terra (depth = 0)")
         
         self.modified = True
@@ -458,21 +397,17 @@ class GridEditor:
         if event.inaxes != self.ax or event.button != 1:
             return
         
-        # Converter coordenadas do click
-        if self.use_cartopy:
-            # Transformar de coordenadas de display para dados
-            lon, lat = event.xdata, event.ydata
-        else:
-            lon, lat = event.xdata, event.ydata
+        # Obter coordenadas do click
+        lon, lat = event.xdata, event.ydata
         
         if lon is None or lat is None:
             return
         
         # Encontrar célula mais próxima
-        i, j = self.find_nearest_cell(lon, lat)
+        j, i = self.find_nearest_cell(lon, lat)
         
         # Toggle célula
-        self.toggle_cell(i, j)
+        self.toggle_cell(j, i)
     
     def on_key(self, event):
         """
@@ -584,14 +519,16 @@ class GridEditor:
             f.write(f"# Editado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             
             # Escrever dados
-            idx = 1
-            for i in range(len(self.lats)):
-                for j in range(len(self.lons)):
-                    lon = self.lons[j]
-                    lat = self.lats[i]
-                    depth = self.depth[i, j]
-                    f.write(f"{idx:6d} {idx:6d} {lon:10.4f} {lat:10.4f} {depth:10.4f}\n")
-                    idx += 1
+            # A grade original usa formato: i j lon lat depth
+            # onde i é índice de longitude e j é índice de latitude
+            for j in range(len(self.lats)):
+                for i in range(len(self.lons)):
+                    i_idx = i + 1  # 1-based
+                    j_idx = j + 1  # 1-based
+                    lon = self.lons[i]
+                    lat = self.lats[j]
+                    depth = self.depth[j, i]
+                    f.write(f"{i_idx:6d} {j_idx:6d} {lon:10.4f} {lat:10.4f} {depth:10.2f}\n")
         
         print(f"✓ Grade salva com sucesso!")
         print(f"  Total de pontos: {len(self.lats) * len(self.lons)}")
@@ -626,15 +563,12 @@ Exemplos:
                        help='Não mostrar linha de costa inicialmente')
     parser.add_argument('--no-contours', action='store_true',
                        help='Não mostrar contornos batimétricos')
-    parser.add_argument('--no-cartopy', action='store_true',
-                       help='Não usar Cartopy (linha de costa simplificada)')
     
     args = parser.parse_args()
     
     try:
         editor = GridEditor(
             args.grid_file,
-            use_cartopy=not args.no_cartopy,
             show_contours=not args.no_contours
         )
         
