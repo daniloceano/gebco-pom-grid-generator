@@ -13,10 +13,10 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(project_root, 'tools', 'gebco_interpolation', 'scripts'))
 from edit_grid_interactive import InteractiveBathymetryEditor
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 test_file = os.path.join(project_root, "output", "pom_bathymetry_grid.asc")
 
 print("="*70)

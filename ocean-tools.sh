@@ -129,6 +129,23 @@ cmd_edit() {
     python edit_grid_interactive.py "$PROJECT_ROOT/$GRID_FILE"
 }
 
+# Comando: executar testes
+cmd_test() {
+    show_banner
+    echo -e "${GREEN}Executando testes...${NC}"
+    echo ""
+    
+    # Verificar se ambiente está ativo
+    if [[ "$CONDA_DEFAULT_ENV" != "pom" ]]; then
+        echo -e "${YELLOW}Ativando ambiente conda 'pom'...${NC}"
+        eval "$(conda shell.bash hook)"
+        conda activate pom
+    fi
+    
+    cd "$SCRIPT_DIR"
+    python run_tests.py "$@"
+}
+
 # Comando: ajuda
 cmd_help() {
     show_banner
@@ -137,6 +154,7 @@ cmd_help() {
     echo "Comandos disponíveis:"
     echo ""
     echo -e "  ${GREEN}env${NC}                    - Configurar ambiente conda"
+    echo -e "  ${GREEN}test${NC} [--quick]        - Executar testes de validação"
     echo -e "  ${GREEN}gebco${NC}                  - Acessar ferramenta de interpolação GEBCO"
     echo -e "  ${GREEN}edit${NC} <arquivo>        - Editar grade interativamente"
     echo -e "  ${GREEN}help${NC}                   - Mostrar esta ajuda"
@@ -145,6 +163,10 @@ cmd_help() {
     echo ""
     echo "  # Configurar ambiente (primeira vez)"
     echo "  ./ocean-tools.sh env"
+    echo ""
+    echo "  # Executar testes"
+    echo "  ./ocean-tools.sh test"
+    echo "  ./ocean-tools.sh test --quick  # Apenas testes rápidos"
     echo ""
     echo "  # Usar ferramenta GEBCO"
     echo "  ./ocean-tools.sh gebco"
@@ -176,6 +198,10 @@ fi
 case "$1" in
     env)
         cmd_env
+        ;;
+    test)
+        shift
+        cmd_test "$@"
         ;;
     gebco)
         cmd_gebco

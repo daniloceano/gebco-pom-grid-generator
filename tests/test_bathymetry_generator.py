@@ -112,8 +112,10 @@ def test_generator_class():
     print("="*70)
     
     try:
-        from create_pom_bathymetry_grid import BathymetryGridGenerator
-        print("\n✓ Classe BathymetryGridGenerator importada com sucesso")
+        # Tentar importar da nova estrutura
+        sys.path.insert(0, os.path.join(PROJECT_ROOT, 'tools', 'gebco_interpolation', 'src'))
+        from bathymetry_generator import BathymetryGridGenerator
+        print("\n✓ Classe BathymetryGridGenerator importada com sucesso (nova estrutura)")
         
         # Testar inicialização (sem carregar dados)
         try:
@@ -127,6 +129,7 @@ def test_generator_class():
             
     except ImportError as e:
         print(f"\n✗ Erro ao importar classe: {e}")
+        print("  Verifique se tools/gebco_interpolation/src/bathymetry_generator.py existe")
         return False
     except Exception as e:
         print(f"\n✗ Erro inesperado: {e}")
@@ -151,7 +154,9 @@ def test_small_grid():
         return True  # Não falhar o teste se o arquivo não existir
     
     try:
-        from create_pom_bathymetry_grid import BathymetryGridGenerator
+        # Importar da nova estrutura
+        sys.path.insert(0, os.path.join(PROJECT_ROOT, 'tools', 'gebco_interpolation', 'src'))
+        from bathymetry_generator import BathymetryGridGenerator
         import numpy as np
         
         print("\nGerando grade de teste pequena (1° x 1°)...")
@@ -273,9 +278,14 @@ def main():
         print("="*70)
         print("\nO sistema está pronto para gerar grades batimétricas.")
         print("\nPróximos passos:")
-        print("  1. Edite create_pom_bathymetry_grid.py com suas configurações")
-        print("  2. Execute: python create_pom_bathymetry_grid.py")
-        print("  Ou use: python quick_generate_grid.py --help para opções rápidas")
+        print("  1. Acesse a ferramenta GEBCO:")
+        print("     cd tools/gebco_interpolation/scripts")
+        print("  2. Edite as configurações:")
+        print("     nano generate_grid.py")
+        print("  3. Execute o gerador:")
+        print("     python generate_grid.py")
+        print("\n  Ou use o script mestre:")
+        print("     ./ocean-tools.sh gebco")
         return 0
     elif critical_passed:
         print(" ⚠ SISTEMA PARCIALMENTE FUNCIONAL")

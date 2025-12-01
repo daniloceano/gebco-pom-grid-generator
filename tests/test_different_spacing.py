@@ -14,8 +14,9 @@ Data: Outubro 2025
 import sys
 import os
 
-# Adicionar src ao path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Adicionar nova estrutura ao path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(project_root, 'tools', 'gebco_interpolation', 'src'))
 
 from bathymetry_generator import BathymetryGridGenerator
 import numpy as np

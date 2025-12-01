@@ -15,14 +15,14 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 
-# Adicionar scripts ao path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+# Adicionar nova estrutura ao path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(project_root, 'tools', 'gebco_interpolation', 'scripts'))
 
 # Importar editor
 from edit_grid_interactive import InteractiveBathymetryEditor
 
 # Arquivo de teste
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 test_file = os.path.join(project_root, "output", "pom_bathymetry_grid.asc")
 
 if not os.path.exists(test_file):
