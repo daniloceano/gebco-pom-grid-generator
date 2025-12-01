@@ -18,8 +18,7 @@ Interpola dados batimétricos globais do GEBCO para criar grades regulares custo
 - ✨ Interpolação de alta qualidade dos dados batimétricos
 - 🚀 Processamento paralelo para grandes áreas
 - 📐 Espaçamentos diferentes para dx e dy
-- 🖱️ Editor interativo para correções manuais
-- 📝 Formato ASCII simples (5 colunas: i, j, lon, lat, depth)
+-  Formato ASCII simples (5 colunas: i, j, lon, lat, depth)
 
 **Uso rápido**:
 ```bash
@@ -31,7 +30,30 @@ python generate_grid.py
 
 ---
 
-### 2. [Futuras Ferramentas]
+### 2. Editor de Grades
+
+Editor visual interativo para manipulação manual de grades oceânicas.
+
+**Localização**: `tools/grid_editor/`
+
+**Características**:
+- 🗺️ Linha de costa real (Cartopy/Natural Earth)
+- 📊 Contornos batimétricos com labels
+- 🎨 Terra em cinza, oceano em azul
+- 🖱️ Click para alternar terra ↔ água
+- 🔍 Zoom interativo
+- 🧮 Interpolação automática (IDW)
+
+**Uso rápido**:
+```bash
+./ocean-tools.sh edit output/pom_bathymetry_grid.asc
+```
+
+👉 **[Ver documentação completa](tools/grid_editor/README.md)**
+
+---
+
+### 3. [Futuras Ferramentas]
 
 Espaço reservado para novas funcionalidades de geração de grades.
 

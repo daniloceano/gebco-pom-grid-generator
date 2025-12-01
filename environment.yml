@@ -35,6 +35,7 @@ dependencies:
   
   # Visualização
   - matplotlib>=3.3.0
+  - cartopy>=0.20.0  # Linha de costa real e projeções cartográficas
   
   # Utilidades adicionais (opcionais)
   - ipython  # Shell interativo melhorado

@@ -125,8 +125,8 @@ cmd_edit() {
         conda activate pom
     fi
     
-    cd "$PROJECT_ROOT/tools/gebco_interpolation/scripts"
-    python edit_grid_interactive.py "$PROJECT_ROOT/$GRID_FILE"
+    cd "$SCRIPT_DIR/tools/grid_editor/scripts"
+    python edit_grid.py "$SCRIPT_DIR/$GRID_FILE"
 }
 
 # Comando: executar testes
