@@ -24,6 +24,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from bathymetry_generator import BathymetryGridGenerator
 
 
+def generate_output_filename(lon_min, lon_max, lat_min, lat_max, dx, dy, ext="asc"):
+    """
+    Gera nome de arquivo de saída baseado nos parâmetros da grade.
+    Mesmo padrão usado em generate_grid.py.
+    """
+    output_dir = "../../../output"
+    lon_str = f"lon{lon_min}_{lon_max}"
+    lat_str = f"lat{lat_min}_{lat_max}"
+    dx_str = f"dx{dx}"
+    dy_str = f"dy{dy}"
+    filename = f"rectangular_grid_{lon_str}_{lat_str}_{dx_str}_{dy_str}_gebco.{ext}"
+    return os.path.join(output_dir, filename)
+
+
 def parse_arguments():
     """Processa argumentos de linha de comando."""
     parser = argparse.ArgumentParser(
@@ -32,16 +46,23 @@ def parse_arguments():
         epilog="""
 Exemplos de uso:
 
+  # Grade global (padrão)
+  python quick_generate.py
+
   # Usar região pré-definida
   python quick_generate.py --region brasil_sul
 
   # Especificar região customizada
   python quick_generate.py --lon-min -55 --lon-max -40 --lat-min -30 --lat-max -20
 
-  # Mudar espaçamento e desabilitar paralelização
-  python quick_generate.py --region brasil_sul --spacing 0.1 --no-parallel
+  # Mudar espaçamento (dx e dy iguais)
+  python quick_generate.py --dx 0.1 --dy 0.1
+  
+  # Espaçamentos diferentes
+  python quick_generate.py --dx 0.3 --dy 0.25
 
 Regiões pré-definidas:
+  - global: Grade global (-180 a 180, -90 a 90) - PADRÃO
   - brasil_sul: Sul/Sudeste do Brasil
   - brasil_nordeste: Nordeste do Brasil
   - atlantico_sw: Atlântico Sul-Ocidental
@@ -49,7 +70,7 @@ Regiões pré-definidas:
     )
     
     parser.add_argument('--gebco-file', type=str, 
-                       default='../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc',
+                       default='../../../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc',
                        help='Caminho para arquivo GEBCO NetCDF')
     
     parser.add_argument('--lon-min', type=float, help='Longitude mínima (oeste)')
@@ -57,14 +78,17 @@ Regiões pré-definidas:
     parser.add_argument('--lat-min', type=float, help='Latitude mínima (sul)')
     parser.add_argument('--lat-max', type=float, help='Latitude máxima (norte)')
     
-    parser.add_argument('--spacing', type=float, default=0.25,
-                       help='Espaçamento da grade em graus (padrão: 0.25)')
+    parser.add_argument('--dx', type=float, default=0.25,
+                       help='Espaçamento em longitude (graus, padrão: 0.25)')
     
-    parser.add_argument('--output', type=str, default='../output/pom_grid.asc',
-                       help='Arquivo de saída ASCII')
+    parser.add_argument('--dy', type=float, default=0.25,
+                       help='Espaçamento em latitude (graus, padrão: 0.25)')
     
-    parser.add_argument('--plot-output', type=str, default='../output/pom_grid.png',
-                       help='Arquivo de saída da visualização')
+    parser.add_argument('--output', type=str, default=None,
+                       help='Arquivo de saída ASCII (padrão: auto-gerado)')
+    
+    parser.add_argument('--plot-output', type=str, default=None,
+                       help='Arquivo de saída da visualização (padrão: auto-gerado)')
     
     parser.add_argument('--no-plot', action='store_true',
                        help='Não gerar visualização')
@@ -74,14 +98,14 @@ Regiões pré-definidas:
                        help='Método de interpolação (padrão: linear)')
     
     parser.add_argument('--region', type=str,
-                       choices=['brasil_sul', 'brasil_nordeste', 'atlantico_sw'],
-                       help='Usar região pré-definida')
+                       choices=['global', 'brasil_sul', 'brasil_nordeste', 'atlantico_sw'],
+                       help='Usar região pré-definida (padrão: global)')
     
     parser.add_argument('--no-parallel', action='store_true',
                        help='Desabilitar processamento paralelo')
     
     parser.add_argument('--workers', type=int, default=None,
-                       help='Número de workers para processamento paralelo')
+                       help='Número de workers (padrão: auto - todos menos 1)')
     
     return parser.parse_args()
 
@@ -89,6 +113,7 @@ Regiões pré-definidas:
 def get_predefined_region(region_name):
     """Retorna coordenadas de regiões pré-definidas."""
     regions = {
+        'global': (-180.0, 180.0, -90.0, 90.0),
         'brasil_sul': (-55.0, -40.0, -30.0, -20.0),
         'brasil_nordeste': (-45.0, -32.0, -18.0, -3.0),
         'atlantico_sw': (-60.0, -30.0, -45.0, -10.0),
@@ -114,9 +139,23 @@ def main():
         lat_min = args.lat_min
         lat_max = args.lat_max
     else:
-        print("\n⚠️  Coordenadas não especificadas. Usando valores padrão")
-        lon_min, lon_max = -60.0, -30.0
-        lat_min, lat_max = -35.0, -5.0
+        # Padrão: grade global
+        print("\n✓ Usando região padrão: global")
+        lon_min, lon_max = -180.0, 180.0
+        lat_min, lat_max = -90.0, 90.0
+    
+    # Gerar nomes de arquivo de saída se não fornecidos
+    if args.output is None:
+        args.output = generate_output_filename(lon_min, lon_max, lat_min, lat_max, args.dx, args.dy, "asc")
+    
+    if args.plot_output is None and not args.no_plot:
+        args.plot_output = generate_output_filename(lon_min, lon_max, lat_min, lat_max, args.dx, args.dy, "png")
+    
+    # Calcular workers (deixar 1 núcleo livre se não especificado)
+    if args.workers is None and not args.no_parallel:
+        import multiprocessing
+        total_cpus = multiprocessing.cpu_count()
+        args.workers = max(1, total_cpus - 1)
     
     print("\n" + "="*70)
     print(" GERAÇÃO RÁPIDA DE GRADE BATIMÉTRICA")
@@ -124,9 +163,9 @@ def main():
     print(f"\nParâmetros:")
     print(f"  Arquivo GEBCO: {args.gebco_file}")
     print(f"  Região: Lon [{lon_min}°, {lon_max}°], Lat [{lat_min}°, {lat_max}°]")
-    print(f"  Espaçamento: {args.spacing}°")
+    print(f"  Espaçamento: dx={args.dx}°, dy={args.dy}°")
     print(f"  Método: {args.method}")
-    print(f"  Paralelo: {'Não' if args.no_parallel else 'Sim'}")
+    print(f"  Paralelo: {'Não' if args.no_parallel else f'Sim ({args.workers} workers)'}")
     print(f"  Saída: {args.output}")
     if not args.no_plot:
         print(f"  Visualização: {args.plot_output}")
@@ -139,7 +178,8 @@ def main():
         # Criar gerador
         generator = BathymetryGridGenerator(
             args.gebco_file, 
-            spacing=args.spacing,
+            spacing_lon=args.dx,
+            spacing_lat=args.dy,
             n_workers=args.workers
         )
         
