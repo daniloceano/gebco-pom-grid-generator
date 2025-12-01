@@ -9,6 +9,10 @@ test_grid.*
 # Dados do GEBCO (muito grande para Git)
 gebco_2025_sub_ice_topo/*.nc
 
+# Dados BRAN2020
+BRAN2020/*.nc
+
+
 # Python
 __pycache__/
 *.py[cod]

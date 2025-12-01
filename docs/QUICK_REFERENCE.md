@@ -1,17 +1,17 @@
-# Guia de Referência Rápida - Ocean Grid Tools
+# Guia de Referência Rápida - RecOM (Rectangular Ocean Mesh Tools)
 
 ## 🎯 Comandos Essenciais
 
 ### Configuração Inicial (apenas uma vez)
 ```bash
 conda env create -f environment.yml
-conda activate pom
+conda activate ocean_mesh_tools
 ```
 
 ### Ativar/Desativar Ambiente
 ```bash
-conda activate pom    # Ativar
-conda deactivate      # Desativar
+conda activate ocean_mesh_tools    # Ativar
+conda deactivate                   # Desativar
 ```
 
 ## 📋 Fluxo de Trabalho

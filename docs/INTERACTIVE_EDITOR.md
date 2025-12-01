@@ -185,7 +185,7 @@ Você pode carregar versões antigas para comparar:
 ### Editor não abre
 ```bash
 # Verificar instalação do matplotlib
-conda activate pom
+conda activate ocean_mesh_tools
 python -c "import matplotlib; print(matplotlib.__version__)"
 
 # Se necessário, reinstalar
@@ -233,5 +233,5 @@ Possíveis melhorias planejadas:
 ## Suporte
 
 Para problemas ou sugestões:
-- Abra uma issue no GitHub: https://github.com/daniloceano/gebco-pom-grid-generator
+- Abra uma issue no GitHub: https://github.com/daniloceano/RecOM
 - Consulte a documentação principal em `docs/`

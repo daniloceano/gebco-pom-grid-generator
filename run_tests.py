@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script de Testes - Ocean Grid Tools
+Script de Testes - RecOM
 ===================================
 
 Executa todos os testes disponíveis para validar a instalação
@@ -59,7 +59,7 @@ def run_test(test_file, description):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Executar testes do Ocean Grid Tools')
+    parser = argparse.ArgumentParser(description='Executar testes do RecOM')
     parser.add_argument('--quick', action='store_true', 
                        help='Executar apenas testes rápidos (sem geração de grade)')
     parser.add_argument('--test', type=str, 
@@ -67,7 +67,7 @@ def main():
     args = parser.parse_args()
     
     print("\n" + "="*70)
-    print(" 🌊 OCEAN GRID TOOLS - Suite de Testes")
+    print(" 🌊 RecOM - Suite de Testes")
     print("="*70)
     
     # Definir testes disponíveis

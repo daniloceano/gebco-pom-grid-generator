@@ -1,4 +1,4 @@
-# 🗂️ Índice da Documentação - Ocean Grid Tools
+# 🗂️ Índice da Documentação - RecOM (Rectangular Ocean Mesh Tools)
 
 ## 📖 Para Novos Usuários
 
@@ -13,7 +13,7 @@ Leia nesta ordem:
 ```bash
 # 1. Instalar (uma vez)
 conda env create -f environment.yml
-conda activate pom
+conda activate ocean_mesh_tools
 
 # 2. Usar ferramenta GEBCO
 cd tools/gebco_interpolation/scripts

@@ -1,4 +1,4 @@
-# Editor de Grades - Ocean Grid Tools
+# Editor de Grades - RecOM
 
 ## O que faz
 
@@ -45,11 +45,11 @@ python edit_grid.py grade.asc --no-contours
 python edit_grid.py grade.asc --no-cartopy
 ```
 
-### Via ocean-tools.sh
+### Via ocean_mesh_tools.sh
 
 ```bash
 cd ../../..
-./ocean-tools.sh edit output/pom_bathymetry_grid.asc
+./ocean_mesh_tools.sh edit output/pom_bathymetry_grid.asc
 ```
 
 ## Controles
@@ -68,6 +68,11 @@ cd ../../..
 - **b**: Toggle contornos batimétricos
 - **s**: Salvar modificações
 - **q**: Sair
+
+**Nota:** Para aplicar máscaras de reanálise, use o módulo `reanalysis_mask`:
+```bash
+python tools/reanalysis_mask/scripts/apply_mask.py <grade> <mascara>
+```
 
 ## Visualização
 
@@ -211,7 +216,7 @@ Dica: Use zoom para trabalhar em regiões específicas
 
 ### "cartopy não encontrado"
 ```bash
-conda activate pom
+conda activate ocean_mesh_tools
 conda install -c conda-forge cartopy
 ```
 

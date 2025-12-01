@@ -1,5 +1,5 @@
 """
-Grid Editor - Ocean Grid Tools
+Grid Editor - RecOM
 ===============================
 
 Editor visual para manipulação de grades oceânicas.

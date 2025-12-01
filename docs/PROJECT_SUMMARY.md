@@ -5,7 +5,7 @@
 **Data de criação:** Outubro 22, 2025  
 **Versão:** 1.0  
 **Status dos testes:** ✅ Todos os testes passaram  
-**Ambiente:** ✅ Configurado (conda env 'pom')
+**Ambiente:** ✅ Configurado (conda env 'ocean_mesh_tools')
 
 ---
 
@@ -41,7 +41,7 @@
 
 5. **`setup_environment.sh`** (4.7 KB) ⭐
    - Instalação automática do ambiente conda
-   - Cria ambiente 'pom' com todas as dependências
+   - Cria ambiente 'ocean_mesh_tools' com todas as dependências
    - Validação pós-instalação
    - **Execute uma vez na configuração inicial**
 
@@ -123,7 +123,7 @@
 ./pom.sh quick --lon-min -60 --lon-max -30 --lat-min -35 --lat-max -5
 
 # Ou ativando ambiente manualmente
-conda activate pom
+conda activate ocean_mesh_tools
 python quick_generate_grid.py --help
 ```
 
@@ -201,7 +201,7 @@ python quick_generate_grid.py --help
 ### Software Necessário:
 
 - ✅ **Conda** (Anaconda/Miniconda) - Instalado
-- ✅ **Python 3.10** - Instalado no ambiente 'pom'
+- ✅ **Python 3.10** - Instalado no ambiente 'ocean_mesh_tools'
 
 ### Pacotes Python (todos instalados):
 

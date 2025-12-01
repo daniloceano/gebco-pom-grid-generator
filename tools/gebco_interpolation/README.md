@@ -185,7 +185,7 @@ python edit_grid_interactive.py ../output/pom_bathymetry_grid.asc
 Instale todas as dependências com:
 ```bash
 conda env create -f ../../environment.yml
-conda activate pom
+conda activate ocean_mesh_tools
 ```
 
 ## Estrutura de arquivos

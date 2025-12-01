@@ -1,5 +1,5 @@
 # ==============================================================================
-# Arquivo de Configuração do Ambiente Conda - Projeto POM
+# Arquivo de Configuração do Ambiente Conda - RecOM
 # ==============================================================================
 #
 # Este arquivo define todas as dependências necessárias para o projeto.
@@ -13,11 +13,11 @@
 #   conda env update -f environment.yml --prune
 #
 # Para remover o ambiente:
-#   conda env remove -n pom
+#   conda env remove -n ocean_mesh_tools
 #
 # ==============================================================================
 
-name: pom
+name: ocean_mesh_tools
 
 channels:
   - conda-forge

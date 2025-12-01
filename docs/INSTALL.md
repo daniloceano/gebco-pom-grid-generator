@@ -1,4 +1,4 @@
-# Guia de Instalação - Ocean Grid Tools
+# Guia de Instalação - RecOM (Rectangular Ocean Mesh Tools)
 
 ## Pré-requisitos
 
@@ -33,8 +33,8 @@ gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc
 
 ```bash
 # Se usar git
-git clone https://github.com/daniloceano/gebco-pom-grid-generator.git
-cd gebco-pom-grid-generator
+git clone https://github.com/daniloceano/RecOM.git
+cd RecOM
 
 # Ou baixe o ZIP e extraia
 ```
@@ -51,10 +51,10 @@ conda env create -f environment.yml
 ### Passo 3: Ativar Ambiente
 
 ```bash
-conda activate pom
+conda activate ocean_mesh_tools
 ```
 
-Você verá `(pom)` no início do prompt.
+Você verá `(ocean_mesh_tools)` no início do prompt.
 
 ### Passo 4: Verificar Instalação
 
@@ -71,7 +71,7 @@ python --version  # Deve mostrar Python 3.10 ou superior
 ### Sempre ativar o ambiente antes de usar
 
 ```bash
-conda activate pom
+conda activate ocean_mesh_tools
 ```
 
 ### Executar ferramenta GEBCO
@@ -95,7 +95,7 @@ Se preferir instalar manualmente:
 
 ```bash
 conda create -n pom python=3.10 -y
-conda activate pom
+conda activate ocean_mesh_tools
 ```
 
 ### 2. Instalar dependências
@@ -161,7 +161,7 @@ mamba env create -f environment.yml
 
 **Solução:**
 ```bash
-conda activate pom
+conda activate ocean_mesh_tools
 conda install -c conda-forge netcdf4 --force-reinstall
 ```
 
@@ -201,14 +201,14 @@ python generate_grid.py
 ### Atualizar pacotes
 
 ```bash
-conda activate pom
+conda activate ocean_mesh_tools
 conda update --all
 ```
 
 ### Adicionar novo pacote
 
 ```bash
-conda activate pom
+conda activate ocean_mesh_tools
 conda install -c conda-forge nome_do_pacote
 ```
 

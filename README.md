@@ -1,10 +1,10 @@
-# Ocean Grid Tools
+# RecOM - Rectangular Ocean Mesh Tools
 
 Ferramentas para geração de grades retangulares para modelos oceânicos.
 
 ## 📋 Sobre
 
-Este é um conjunto de ferramentas (toolkit) para auxiliar na criação e manipulação de grades retangulares utilizadas em modelos oceânicos numéricos. O projeto é modular, permitindo adicionar novas funcionalidades de forma independente.
+RecOM (**Rec**tangular **O**cean **M**esh Tools) é um conjunto de ferramentas (toolkit) para auxiliar na criação e manipulação de grades retangulares utilizadas em modelos oceânicos numéricos. O projeto é modular, permitindo adicionar novas funcionalidades de forma independente.
 
 ## 🗂️ Ferramentas Disponíveis
 
@@ -46,14 +46,42 @@ Editor visual interativo para manipulação manual de grades oceânicas.
 
 **Uso rápido**:
 ```bash
-./ocean-tools.sh edit output/pom_bathymetry_grid.asc
+./ocean_mesh_tools.sh edit output/pom_bathymetry_grid.asc
 ```
 
 👉 **[Ver documentação completa](tools/grid_editor/README.md)**
 
 ---
 
-### 3. [Futuras Ferramentas]
+### 3. Extração de Máscaras de Reanálises
+
+Extrai máscaras terra/oceano de dados de reanálises oceânicas para aplicar em grades customizadas.
+
+**Localização**: `tools/reanalysis_mask/`
+
+**Características**:
+- 🌊 Identifica oceano vs terra a partir de dados válidos
+- 📉 Degradação de resolução com agregação configurável
+-  Suporta BRAN2020, GLORYS, HYCOM e outros
+- 🎯 Alinhamento preciso de grades
+- 💾 Gera novas grades com sufixo indicando máscara aplicada
+
+**Uso rápido**:
+```bash
+# Extrair máscara
+python tools/reanalysis_mask/scripts/extract_mask.py /path/to/reanalysis.nc \
+    --lon-range -60 -30 --lat-range -35 -5 --target-res 0.25 0.25
+
+# Aplicar máscara à grade
+python tools/reanalysis_mask/scripts/apply_mask.py \
+    output/rectangular_grid_*.asc output/mask_ocean_*.asc
+```
+
+👉 **[Ver documentação completa](tools/reanalysis_mask/README.md)**
+
+---
+
+### 4. [Futuras Ferramentas]
 
 Espaço reservado para novas funcionalidades de geração de grades.
 
@@ -64,7 +92,7 @@ Espaço reservado para novas funcionalidades de geração de grades.
 ```bash
 # Criar ambiente conda com todas as dependências
 conda env create -f environment.yml
-conda activate pom
+conda activate ocean_mesh_tools
 ```
 
 ### 2. Download dos Dados GEBCO
@@ -102,22 +130,27 @@ python generate_grid.py
 ```
 ocean-grid-tools/
 ├── tools/                        # Ferramentas disponíveis
-│   └── gebco_interpolation/      # Interpolação de dados GEBCO
+│   ├── gebco_interpolation/      # Interpolação de dados GEBCO
+│   ├── grid_editor/              # Editor interativo de grades
+│   └── reanalysis_mask/          # Extração de máscaras de reanálises
 │       ├── README.md             # Doc específica desta ferramenta
 │       ├── src/                  # Código-fonte
 │       ├── scripts/              # Scripts executáveis
-│       └── examples/             # Exemplos de uso
+│       ├── examples/             # Exemplos de uso
+│       └── tests/                # Testes unitários
 │
 ├── docs/                         # Documentação geral
 │   ├── INSTALL.md
 │   ├── QUICK_REFERENCE.md
 │   └── ...
 │
+├── tests/                        # Testes do projeto
 ├── gebco_2025_sub_ice_topo/      # Dados GEBCO (não versionado)
 ├── output/                       # Arquivos gerados
 │
 ├── environment.yml               # Ambiente conda
 ├── requirements.txt              # Dependências Python
+├── ocean_mesh_tools.sh           # Script CLI principal
 └── README.md                     # Este arquivo
 ```
 

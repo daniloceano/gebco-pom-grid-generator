@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Editor Interativo de Grades - Ocean Grid Tools
-===============================================
+Editor Interativo de Grades - RecOM
+====================================
 
 Editor visual para manipulação manual de grades oceânicas.
 Suporta diferentes formatos de grade e pode ser usado por múltiplas
@@ -28,13 +28,16 @@ Controles:
 - Tecla 's': Salvar modificações
 - Tecla 'q' ou fechar janela: Sair
 
+Nota: Para aplicar máscaras de reanálise, use o script separado:
+    python tools/reanalysis_mask/scripts/apply_mask.py <grade> <mascara>
+
 Uso:
     python grid_editor.py <arquivo_grade.asc>
     
     # Com opções
     python grid_editor.py <arquivo> --no-coastline --no-contours
     
-Autor: Ocean Grid Tools
+Autor: RecOM Team
 Data: Dezembro 2025
 """
 
@@ -92,6 +95,7 @@ class GridEditor:
         print("  'g': Toggle grade")
         print("  'c': Toggle linha de costa")
         print("  'b': Toggle contornos batimétricos")
+        print("  'm': Aplicar máscara de reanálise")
         print("  's': Salvar modificações")
         print("  'q': Sair")
         print("="*70)
@@ -547,7 +551,7 @@ def main():
     Função principal CLI.
     """
     parser = argparse.ArgumentParser(
-        description='Editor Interativo de Grades - Ocean Grid Tools',
+        description='Editor Interativo de Grades - RecOM',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
