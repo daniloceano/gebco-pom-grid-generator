@@ -104,26 +104,78 @@ def load_mask(filename):
     
     return mask_lons, mask_lats, mask
 
+def normalize_longitude(lon):
+    """
+    Normaliza longitude para -180 a 180.
+    """
+    while lon > 180:
+        lon -= 360
+    while lon < -180:
+        lon += 360
+    return lon
+
 def apply_mask(lons, lats, depth, mask_lons, mask_lats, mask):
     """
     Aplica máscara à grade.
     
+    Corta a grade para o domínio da máscara e aplica.
     Onde a máscara indica terra (0), converte pontos oceânicos para terra.
-    Não cria oceano onde não havia.
     
     Returns:
+        lons_cropped (array): Longitudes cortadas
+        lats_cropped (array): Latitudes cortadas
         depth_masked (array): Grade com máscara aplicada
         n_changes (int): Número de pontos alterados
+        n_removed (int): Número de pontos removidos (fora do domínio)
     """
     print("\nAplicando máscara...")
     
-    depth_masked = depth.copy()
+    # Converter longitudes da máscara para -180/180 se necessário
+    mask_lons_norm = mask_lons.copy()
+    if np.any(mask_lons > 180):
+        print("  Convertendo longitudes da máscara de [0,360] para [-180,180]")
+        mask_lons_norm = np.array([normalize_longitude(lon) for lon in mask_lons])
+        # Reordenar se necessário
+        if not np.all(mask_lons_norm[:-1] <= mask_lons_norm[1:]):
+            sort_idx = np.argsort(mask_lons_norm)
+            mask_lons_norm = mask_lons_norm[sort_idx]
+            mask = mask[:, sort_idx]
+    
+    # Determinar limites do domínio da máscara
+    mask_lon_min = mask_lons_norm.min()
+    mask_lon_max = mask_lons_norm.max()
+    mask_lat_min = mask_lats.min()
+    mask_lat_max = mask_lats.max()
+    
+    print(f"  Domínio da máscara: lon [{mask_lon_min:.2f}, {mask_lon_max:.2f}], "
+          f"lat [{mask_lat_min:.2f}, {mask_lat_max:.2f}]")
+    
+    # Encontrar índices da grade que estão dentro do domínio da máscara
+    lon_mask = (lons >= mask_lon_min) & (lons <= mask_lon_max)
+    lat_mask = (lats >= mask_lat_min) & (lats <= mask_lat_max)
+    
+    lons_cropped = lons[lon_mask]
+    lats_cropped = lats[lat_mask]
+    
+    # Extrair subgrade
+    depth_cropped = depth[np.ix_(lat_mask, lon_mask)]
+    
+    n_original = len(lons) * len(lats)
+    n_cropped = len(lons_cropped) * len(lats_cropped)
+    n_removed = n_original - n_cropped
+    
+    print(f"  Grade original: {len(lons)} x {len(lats)} = {n_original} pontos")
+    print(f"  Grade cortada: {len(lons_cropped)} x {len(lats_cropped)} = {n_cropped} pontos")
+    print(f"  Pontos removidos (fora do domínio): {n_removed}")
+    
+    # Aplicar máscara
+    depth_masked = depth_cropped.copy()
     n_changes = 0
     
-    for j, lat in enumerate(lats):
-        for i, lon in enumerate(lons):
+    for j, lat in enumerate(lats_cropped):
+        for i, lon in enumerate(lons_cropped):
             # Encontrar ponto mais próximo na máscara
-            lon_idx = np.argmin(np.abs(mask_lons - lon))
+            lon_idx = np.argmin(np.abs(mask_lons_norm - lon))
             lat_idx = np.argmin(np.abs(mask_lats - lat))
             
             mask_val = mask[lat_idx, lon_idx]
@@ -137,7 +189,7 @@ def apply_mask(lons, lats, depth, mask_lons, mask_lats, mask):
     print(f"  Oceano final: {np.sum(depth_masked > 0)} pontos")
     print(f"  Terra final: {np.sum(depth_masked == 0)} pontos")
     
-    return depth_masked, n_changes
+    return lons_cropped, lats_cropped, depth_masked, n_changes, n_removed
 
 def save_grid(filename, header, lons, lats, depth, mask_file):
     """
@@ -232,21 +284,25 @@ Exemplos:
     if (grid_lon_range[0] < mask_lon_range[0] or grid_lon_range[1] > mask_lon_range[1] or
         grid_lat_range[0] < mask_lat_range[0] or grid_lat_range[1] > mask_lat_range[1]):
         print("\n⚠ AVISO: Domínio da grade excede domínio da máscara")
-        print("  Pontos fora da máscara usarão vizinho mais próximo")
+        print("  A grade será cortada para o domínio da máscara")
     
-    # Aplicar máscara
-    depth_masked, n_changes = apply_mask(lons, lats, depth, mask_lons, mask_lats, mask)
+    # Aplicar máscara (corta a grade para o domínio da máscara)
+    lons_masked, lats_masked, depth_masked, n_changes, n_removed = apply_mask(
+        lons, lats, depth, mask_lons, mask_lats, mask
+    )
     
     # Salvar resultado
-    save_grid(output_file, header, lons, lats, depth_masked, args.mask_file)
+    save_grid(output_file, header, lons_masked, lats_masked, depth_masked, args.mask_file)
     
     print("\n" + "="*70)
     print("✓ CONCLUÍDO!")
     print("="*70)
     print(f"\nGrade com máscara salva em: {output_file}")
-    print(f"Pontos alterados: {n_changes}")
+    print(f"Pontos alterados pela máscara: {n_changes}")
+    if n_removed > 0:
+        print(f"Pontos removidos (fora do domínio): {n_removed}")
     print(f"\nVisualize o resultado:")
-    print(f"  python tools/grid_editor/scripts/edit_grid.py {output_file}")
+    print(f"  ./ocean_mesh_tools.sh view {output_file}")
     print()
 
 if __name__ == '__main__':
