@@ -114,12 +114,16 @@ def normalize_longitude(lon):
         lon += 360
     return lon
 
-def apply_mask(lons, lats, depth, mask_lons, mask_lats, mask):
+def apply_mask(lons, lats, depth, mask_lons, mask_lats, mask, preserve_boundaries=False):
     """
     Aplica máscara à grade.
     
     Corta a grade para o domínio da máscara e aplica.
     Onde a máscara indica terra (0), converte pontos oceânicos para terra.
+    
+    Args:
+        preserve_boundaries (bool): Se True, preserva colunas de longitude em -180/180
+                                   usando dados originais quando forem cortadas
     
     Returns:
         lons_cropped (array): Longitudes cortadas
@@ -154,6 +158,24 @@ def apply_mask(lons, lats, depth, mask_lons, mask_lats, mask):
     lon_mask = (lons >= mask_lon_min) & (lons <= mask_lon_max)
     lat_mask = (lats >= mask_lat_min) & (lats <= mask_lat_max)
     
+    # Preservar bordas de longitude se solicitado
+    preserve_lon_180 = False
+    preserve_lon_minus180 = False
+    
+    if preserve_boundaries:
+        # Verificar se grade original tem -180 ou +180 que seriam cortados
+        has_lon_180 = np.any(np.abs(lons - 180.0) < 0.001)
+        has_lon_minus180 = np.any(np.abs(lons + 180.0) < 0.001)
+        
+        # Verificar se essas longitudes seriam removidas pelo corte
+        if has_lon_180 and not lon_mask[np.argmin(np.abs(lons - 180.0))]:
+            preserve_lon_180 = True
+            print("  ℹ Preservando coluna em longitude +180° (fora do domínio da máscara)")
+        
+        if has_lon_minus180 and not lon_mask[np.argmin(np.abs(lons + 180.0))]:
+            preserve_lon_minus180 = True
+            print("  ℹ Preservando coluna em longitude -180° (fora do domínio da máscara)")
+    
     lons_cropped = lons[lon_mask]
     lats_cropped = lats[lat_mask]
     
@@ -186,6 +208,33 @@ def apply_mask(lons, lats, depth, mask_lons, mask_lats, mask):
                 n_changes += 1
     
     print(f"  ✓ {n_changes} pontos convertidos para terra")
+    
+    # Adicionar colunas de borda se necessário
+    if preserve_lon_minus180 or preserve_lon_180:
+        lons_final = []
+        depth_cols = []
+        
+        # Adicionar coluna -180 se necessário
+        if preserve_lon_minus180:
+            lon_idx_orig = np.argmin(np.abs(lons + 180.0))
+            lons_final.append(-180.0)
+            depth_cols.append(depth[np.ix_(lat_mask, [lon_idx_orig])])
+        
+        # Adicionar dados principais
+        lons_final.extend(lons_cropped)
+        depth_cols.append(depth_masked)
+        
+        # Adicionar coluna +180 se necessário
+        if preserve_lon_180:
+            lon_idx_orig = np.argmin(np.abs(lons - 180.0))
+            lons_final.append(180.0)
+            depth_cols.append(depth[np.ix_(lat_mask, [lon_idx_orig])])
+        
+        lons_cropped = np.array(lons_final)
+        depth_masked = np.concatenate(depth_cols, axis=1)
+        
+        print(f"  ✓ Colunas de borda preservadas: {len(lons_cropped)} x {len(lats_cropped)} pontos")
+    
     print(f"  Oceano final: {np.sum(depth_masked > 0)} pontos")
     print(f"  Terra final: {np.sum(depth_masked == 0)} pontos")
     
@@ -226,6 +275,9 @@ Exemplos:
       output/rectangular_grid_lon-60_-30_lat-35_-5_dx0.25_dy0.25_gebco.asc \\
       output/mask_ocean_bran2020_lon-60_-30_lat-35_-5_dx0.25_dy0.25.asc
 
+  # Preservar colunas de longitude -180/+180 (recomendado para grades globais)
+  python apply_mask.py grid.asc mask.asc --preserve-boundaries
+
   # Especificar nome de saída
   python apply_mask.py grid.asc mask.asc --output grid_bran2020.asc
         """
@@ -234,6 +286,8 @@ Exemplos:
     parser.add_argument('grid_file', help='Arquivo de grade (.asc)')
     parser.add_argument('mask_file', help='Arquivo de máscara (.asc)')
     parser.add_argument('--output', '-o', help='Arquivo de saída (padrão: <grid>_masked.asc)')
+    parser.add_argument('--preserve-boundaries', action='store_true',
+                       help='Preserva colunas de longitude em -180°/+180° usando dados originais')
     
     args = parser.parse_args()
     
@@ -288,7 +342,8 @@ Exemplos:
     
     # Aplicar máscara (corta a grade para o domínio da máscara)
     lons_masked, lats_masked, depth_masked, n_changes, n_removed = apply_mask(
-        lons, lats, depth, mask_lons, mask_lats, mask
+        lons, lats, depth, mask_lons, mask_lats, mask, 
+        preserve_boundaries=args.preserve_boundaries
     )
     
     # Salvar resultado

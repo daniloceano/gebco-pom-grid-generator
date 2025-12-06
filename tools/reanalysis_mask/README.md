@@ -86,9 +86,17 @@ python apply_mask.py \\
     ../../output/my_grid.asc \\
     mask_braz_coast.asc \\
     --output ../../output/my_grid_bran2020.asc
+
+# Preservar colunas de longitude -180°/+180° (recomendado para grades globais)
+python apply_mask.py \\
+    ../../output/rectangular_grid_*.asc \\
+    mask_braz_coast.asc \\
+    --preserve-boundaries
 ```
 
 O script gera automaticamente um nome com sufixo indicando a máscara aplicada (ex: `_bran2020`).
+
+**⚠ Importante para grades globais:** Use `--preserve-boundaries` para evitar perda das colunas em -180° e +180° quando a máscara estiver em formato 0-360.
 
 ## Uso Programático
 
@@ -137,6 +145,15 @@ extractor.cleanup()
 | `--lat-range MIN MAX` | Limites de latitude | Tudo |
 | `--output` | Arquivo de saída | Auto-gerado |
 | `--no-align` | Não alinhar à grade original | Alinhar |
+
+### apply_mask.py
+
+| Parâmetro | Descrição | Padrão |
+|-----------|-----------|--------|
+| `grid_file` | Arquivo de grade (.asc) | **Obrigatório** |
+| `mask_file` | Arquivo de máscara (.asc) | **Obrigatório** |
+| `--output, -o` | Arquivo de saída | Auto-gerado |
+| `--preserve-boundaries` | Preserva colunas em -180°/+180° | Desabilitado |
 
 ### ReanalysisMaskExtractor.coarsen_mask()
 
@@ -245,6 +262,16 @@ Verifique o caminho completo do arquivo NetCDF.
 
 ### Erro: "Não foi possível identificar variável"
 Especifique explicitamente com `--variable nome_variavel`.
+
+### Grade mascarada perdeu colunas em -180°/+180°
+**Problema:** Grade global (ex: -180° a +180°) perde bordas longitudinais após aplicar máscara em formato 0-360.
+
+**Solução:** Use `--preserve-boundaries` ao aplicar a máscara:
+```bash
+python apply_mask.py grid.asc mask.asc --preserve-boundaries
+```
+
+Isso preserva as colunas originais em -180° e +180° para manter continuidade longitudinal no modelo oceânico.
 
 ### Máscara não alinha com costa
 - Verifique a resolução alvo

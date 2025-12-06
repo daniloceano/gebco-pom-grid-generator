@@ -201,6 +201,93 @@ def test_mask_export():
         return False
 
 
+def test_preserve_boundaries():
+    """Testa preservação de bordas longitudinais ao aplicar máscara."""
+    print("\n" + "="*70)
+    print("TESTE: Preservação de bordas longitudinais")
+    print("="*70)
+    
+    try:
+        # Adicionar script apply_mask ao path
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools', 'reanalysis_mask', 'scripts'))
+        from apply_mask import apply_mask
+        
+        # Criar grade sintética global (-180 a +180)
+        lons_grid = np.arange(-180, 180.1, 0.3)
+        lats_grid = np.arange(-75, 75.1, 0.25)
+        depth_grid = np.random.rand(len(lats_grid), len(lons_grid)) * 5000
+        
+        # Criar máscara sintética (formato 0-360, menor domínio)
+        lons_mask = np.arange(0.05, 360.0, 0.3)
+        lats_mask = np.arange(-74.95, 75.0, 0.25)
+        mask = np.random.randint(0, 2, (len(lats_mask), len(lons_mask)))
+        
+        print("\nConfigurações:")
+        print(f"  Grade: {len(lons_grid)} lons x {len(lats_grid)} lats")
+        print(f"  Range longitude grade: [{lons_grid[0]:.2f}, {lons_grid[-1]:.2f}]")
+        print(f"  Máscara: {len(lons_mask)} lons x {len(lats_mask)} lats")
+        print(f"  Range longitude máscara: [{lons_mask[0]:.2f}, {lons_mask[-1]:.2f}]")
+        
+        # Teste 1: Sem preservar bordas
+        print("\n[Teste 1] Aplicar máscara SEM preservar bordas...")
+        lons_out1, lats_out1, depth_out1, _, _ = apply_mask(
+            lons_grid, lats_grid, depth_grid,
+            lons_mask, lats_mask, mask,
+            preserve_boundaries=False
+        )
+        
+        has_minus180_1 = np.any(np.abs(lons_out1 + 180.0) < 0.001)
+        has_plus180_1 = np.any(np.abs(lons_out1 - 180.0) < 0.001)
+        
+        print(f"  Resultado: {len(lons_out1)} lons x {len(lats_out1)} lats")
+        print(f"  Tem -180°? {has_minus180_1}")
+        print(f"  Tem +180°? {has_plus180_1}")
+        
+        # Teste 2: Com preservar bordas
+        print("\n[Teste 2] Aplicar máscara COM preservar bordas...")
+        lons_out2, lats_out2, depth_out2, _, _ = apply_mask(
+            lons_grid, lats_grid, depth_grid,
+            lons_mask, lats_mask, mask,
+            preserve_boundaries=True
+        )
+        
+        has_minus180_2 = np.any(np.abs(lons_out2 + 180.0) < 0.001)
+        has_plus180_2 = np.any(np.abs(lons_out2 - 180.0) < 0.001)
+        
+        print(f"  Resultado: {len(lons_out2)} lons x {len(lats_out2)} lats")
+        print(f"  Tem -180°? {has_minus180_2}")
+        print(f"  Tem +180°? {has_plus180_2}")
+        
+        # Verificações
+        success = True
+        
+        # Sem preserve_boundaries, deve perder as bordas
+        if has_minus180_1 or has_plus180_1:
+            print("\n✗ FALHA: Sem preserve_boundaries deveria perder bordas -180/+180")
+            success = False
+        
+        # Com preserve_boundaries, deve ter as bordas
+        if not has_minus180_2 or not has_plus180_2:
+            print("\n✗ FALHA: Com preserve_boundaries deveria ter bordas -180/+180")
+            success = False
+        
+        # Grade com bordas deve ter 2 colunas a mais
+        if len(lons_out2) != len(lons_out1) + 2:
+            print(f"\n✗ FALHA: Esperado {len(lons_out1) + 2} longitudes, obteve {len(lons_out2)}")
+            success = False
+        
+        if success:
+            print("\n✓ Teste de preservação de bordas PASSOU")
+        
+        return success
+        
+    except Exception as e:
+        print(f"\n✗ Teste de preservação de bordas FALHOU: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def main():
     """Executa todos os testes."""
     print("="*70)
@@ -212,6 +299,7 @@ def main():
     results.append(test_mask_extraction())
     results.append(test_mask_coarsening())
     results.append(test_mask_export())
+    results.append(test_preserve_boundaries())
     
     print("\n" + "="*70)
     print(" RESUMO DOS TESTES")
