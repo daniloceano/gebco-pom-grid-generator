@@ -258,9 +258,27 @@ class BathymetryGridGenerator:
             # Extrair subset dos dados do GEBCO na região de interesse
             # Adicionar uma margem para garantir boa interpolação nas bordas
             margin = 1.0  # graus
+            
+            # Obter limites do GEBCO
+            gebco_lon_min = float(self.gebco_data[self.lon_name].min())
+            gebco_lon_max = float(self.gebco_data[self.lon_name].max())
+            gebco_lat_min = float(self.gebco_data[self.lat_name].min())
+            gebco_lat_max = float(self.gebco_data[self.lat_name].max())
+            
+            # Ajustar limites de extração para não exceder o domínio do GEBCO
+            lon_extract_min = max(self.lon_min - margin, gebco_lon_min)
+            lon_extract_max = min(self.lon_max + margin, gebco_lon_max)
+            lat_extract_min = max(self.lat_min - margin, gebco_lat_min)
+            lat_extract_max = min(self.lat_max + margin, gebco_lat_max)
+            
+            print(f"Limites do GEBCO: lon [{gebco_lon_min:.2f}, {gebco_lon_max:.2f}], "
+                  f"lat [{gebco_lat_min:.2f}, {gebco_lat_max:.2f}]")
+            print(f"Limites de extração: lon [{lon_extract_min:.2f}, {lon_extract_max:.2f}], "
+                  f"lat [{lat_extract_min:.2f}, {lat_extract_max:.2f}]")
+            
             gebco_subset = self.gebco_data.sel(
-                {self.lon_name: slice(self.lon_min - margin, self.lon_max + margin),
-                 self.lat_name: slice(self.lat_min - margin, self.lat_max + margin)}
+                {self.lon_name: slice(lon_extract_min, lon_extract_max),
+                 self.lat_name: slice(lat_extract_min, lat_extract_max)}
             )
             
             print(f"Subset extraído: {dict(gebco_subset.sizes)}")
@@ -269,6 +287,28 @@ class BathymetryGridGenerator:
             gebco_lons = gebco_subset[self.lon_name].values
             gebco_lats = gebco_subset[self.lat_name].values
             gebco_elevation = gebco_subset[self.elev_name].values
+            
+            # Para grades globais ou próximas aos limites, adicionar wrap-around em longitude
+            need_wrap = (self.lon_min <= gebco_lon_min + 0.5 or 
+                        self.lon_max >= gebco_lon_max - 0.5)
+            
+            if need_wrap:
+                print("Aplicando wrap-around em longitude para grade global...")
+                # Duplicar bordas da longitude para criar continuidade
+                gebco_lons_wrap = np.concatenate([
+                    gebco_lons[:1] - 360,  # Borda esquerda deslocada
+                    gebco_lons,
+                    gebco_lons[-1:] + 360  # Borda direita deslocada
+                ])
+                gebco_elevation_wrap = np.concatenate([
+                    gebco_elevation[:, :1],   # Coluna esquerda
+                    gebco_elevation,
+                    gebco_elevation[:, -1:]   # Coluna direita
+                ], axis=1)
+                
+                gebco_lons = gebco_lons_wrap
+                gebco_elevation = gebco_elevation_wrap
+                print(f"  Longitude expandida: {len(gebco_lons)} pontos")
             
             # Criar interpolador
             print("Criando interpolador...")

@@ -32,7 +32,7 @@ GEBCO_FILE = "../../../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
 
 # Espaçamento da grade em graus decimais
 # Opção 1: Usar o mesmo espaçamento para longitude e latitude
-GRID_SPACING = 0.25  # 0.25° ≈ 27.8 km no equador
+GRID_SPACING = 5  # 0.25° ≈ 27.8 km no equador
 
 # Opção 2: Usar espaçamentos diferentes para longitude (dx) e latitude (dy)
 # Descomente as linhas abaixo para usar espaçamentos diferentes
@@ -40,10 +40,10 @@ GRID_SPACING = 0.25  # 0.25° ≈ 27.8 km no equador
 # SPACING_LAT = 0.20  # dy em graus
 
 # Extensão geográfica da grade (exemplo: costa brasileira)
-LON_MIN = -60.0   # Longitude oeste
-LON_MAX = -30.0   # Longitude leste
-LAT_MIN = -35.0   # Latitude sul
-LAT_MAX = -5.0    # Latitude norte
+LON_MIN = -180.0   # Longitude oeste
+LON_MAX = 180.0   # Longitude leste
+LAT_MIN = -90.0   # Latitude sul
+LAT_MAX = 90.0    # Latitude norte
 
 # Diretório de saída
 
