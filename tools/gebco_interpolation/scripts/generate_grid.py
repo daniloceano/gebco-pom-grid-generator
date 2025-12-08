@@ -28,26 +28,34 @@ from bathymetry_generator import BathymetryGridGenerator
 # ============================================================================
 
 # Caminho para o arquivo GEBCO
-GEBCO_FILE = "../../../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc"
+# Se executar de tools/gebco_interpolation/scripts/, usar caminho relativo
+# Se executar da raiz do projeto, usar caminho direto
+GEBCO_FILE = os.path.join(os.path.dirname(__file__), "../../../gebco_2025_sub_ice_topo/GEBCO_2025_sub_ice.nc")
+GEBCO_FILE = os.path.abspath(GEBCO_FILE)
 
 # Espaçamento da grade em graus decimais
-# Opção 1: Usar o mesmo espaçamento para longitude e latitude
-GRID_SPACING = 5  # 0.25° ≈ 27.8 km no equador
+# Use SPACING_LON (dx) e SPACING_LAT (dy) para espaçamentos diferentes
+# ou defina apenas GRID_SPACING para usar o mesmo valor em ambas direções
+SPACING_LON = 0.3  # dx em graus
+SPACING_LAT = 0.3  # dy em graus
 
-# Opção 2: Usar espaçamentos diferentes para longitude (dx) e latitude (dy)
-# Descomente as linhas abaixo para usar espaçamentos diferentes
-# SPACING_LON = 0.25  # dx em graus
-# SPACING_LAT = 0.20  # dy em graus
+# Extensão geográfica da grade
+# TESTE: Região pequena cruzando a linha de data (±180°)
+# Pacífico equatorial: 178°E a 178°W (= -178°)
+LON_MIN = 178.0    # Longitude oeste (178°E)
+LON_MAX = -178.0   # Longitude leste (178°W) - CRUZA ±180°
+LAT_MIN = -5.0     # Latitude sul
+LAT_MAX = 5.0      # Latitude norte
 
-# Extensão geográfica da grade (exemplo: costa brasileira)
-LON_MIN = -180.0   # Longitude oeste
-LON_MAX = 180.0   # Longitude leste
-LAT_MIN = -90.0   # Latitude sul
-LAT_MAX = 90.0    # Latitude norte
+# Para grade global, use:
+# LON_MIN = -180.0
+# LON_MAX = 180.0
+# LAT_MIN = -90.0
+# LAT_MAX = 90.0
 
 # Diretório de saída
-
-OUTPUT_DIR = "../../../output"
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "../../../output")
+OUTPUT_DIR = os.path.abspath(OUTPUT_DIR)
 
 # Método de interpolação: 'linear', 'nearest', ou 'cubic'
 INTERPOLATION_METHOD = 'linear'
@@ -60,9 +68,9 @@ N_WORKERS = None
 
 # Função para gerar nome de arquivo de saída conforme configurações
 def generate_output_filename(ext="asc"):
-    # Espaçamento
-    dx = globals().get('SPACING_LON', GRID_SPACING)
-    dy = globals().get('SPACING_LAT', GRID_SPACING)
+    # Espaçamento - usa SPACING_LON/LAT se definidos, senão usa GRID_SPACING padrão
+    dx = globals().get('SPACING_LON', globals().get('GRID_SPACING', 0.25))
+    dy = globals().get('SPACING_LAT', globals().get('GRID_SPACING', 0.25))
     # Domínio
     lon_str = f"lon{LON_MIN}_{LON_MAX}"
     lat_str = f"lat{LAT_MIN}_{LAT_MAX}"

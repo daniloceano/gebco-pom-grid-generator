@@ -121,13 +121,14 @@ class BathymetryGridGenerator:
             # Identificar nomes das variáveis (podem variar entre versões)
             self._identify_variable_names()
             
+            # Mostrar extensão (coordenadas são leves, elevação é pesada)
             print(f"\nExtensão dos dados:")
             print(f"  Longitude: {float(self.gebco_data[self.lon_name].min()):.2f}° a "
                   f"{float(self.gebco_data[self.lon_name].max()):.2f}°")
             print(f"  Latitude: {float(self.gebco_data[self.lat_name].min()):.2f}° a "
                   f"{float(self.gebco_data[self.lat_name].max()):.2f}°")
-            print(f"  Elevação: {float(self.gebco_data[self.elev_name].min()):.1f} m a "
-                  f"{float(self.gebco_data[self.elev_name].max()):.1f} m")
+            # Não calcular min/max de elevação (muito pesado para dados grandes)
+            print(f"  Elevação: carregada (range será calculado após subset)")
             print("="*60 + "\n")
             
             return True
@@ -195,7 +196,16 @@ class BathymetryGridGenerator:
         print(f"  Latitude: {lat_min}° a {lat_max}°")
         
         # Criar vetores de coordenadas da nova grade
-        self.grid_lons = np.arange(lon_min, lon_max + self.spacing_lon, self.spacing_lon)
+        # Detectar se cruza a linha de data (lon_max < lon_min, ex: 178° a -178°)
+        if lon_max < lon_min:
+            print(f"  ⚠ Grade cruza linha de data (±180°)")
+            # Criar grade que cruza ±180°: de lon_min até 180, depois de -180 até lon_max
+            lons_east = np.arange(lon_min, 180.0 + self.spacing_lon, self.spacing_lon)
+            lons_west = np.arange(-180.0, lon_max + self.spacing_lon, self.spacing_lon)
+            self.grid_lons = np.concatenate([lons_east, lons_west])
+        else:
+            self.grid_lons = np.arange(lon_min, lon_max + self.spacing_lon, self.spacing_lon)
+        
         self.grid_lats = np.arange(lat_min, lat_max + self.spacing_lat, self.spacing_lat)
         
         n_lons = len(self.grid_lons)
@@ -265,21 +275,49 @@ class BathymetryGridGenerator:
             gebco_lat_min = float(self.gebco_data[self.lat_name].min())
             gebco_lat_max = float(self.gebco_data[self.lat_name].max())
             
-            # Ajustar limites de extração para não exceder o domínio do GEBCO
-            lon_extract_min = max(self.lon_min - margin, gebco_lon_min)
-            lon_extract_max = min(self.lon_max + margin, gebco_lon_max)
             lat_extract_min = max(self.lat_min - margin, gebco_lat_min)
             lat_extract_max = min(self.lat_max + margin, gebco_lat_max)
             
             print(f"Limites do GEBCO: lon [{gebco_lon_min:.2f}, {gebco_lon_max:.2f}], "
                   f"lat [{gebco_lat_min:.2f}, {gebco_lat_max:.2f}]")
-            print(f"Limites de extração: lon [{lon_extract_min:.2f}, {lon_extract_max:.2f}], "
-                  f"lat [{lat_extract_min:.2f}, {lat_extract_max:.2f}]")
             
-            gebco_subset = self.gebco_data.sel(
-                {self.lon_name: slice(lon_extract_min, lon_extract_max),
-                 self.lat_name: slice(lat_extract_min, lat_extract_max)}
-            )
+            # Verificar se cruza a linha de data
+            if self.lon_max < self.lon_min:
+                print(f"Grade cruza ±180° - extraindo dois subsets")
+                # Extrair lado leste (lon_min até +180)
+                lon_extract_east_min = max(self.lon_min - margin, gebco_lon_min)
+                lon_extract_east_max = gebco_lon_max
+                # Extrair lado oeste (-180 até lon_max)
+                lon_extract_west_min = gebco_lon_min
+                lon_extract_west_max = min(self.lon_max + margin, gebco_lon_max)
+                
+                print(f"  Lado leste: lon [{lon_extract_east_min:.2f}, {lon_extract_east_max:.2f}]")
+                print(f"  Lado oeste: lon [{lon_extract_west_min:.2f}, {lon_extract_west_max:.2f}]")
+                
+                subset_east = self.gebco_data.sel(
+                    {self.lon_name: slice(lon_extract_east_min, lon_extract_east_max),
+                     self.lat_name: slice(lat_extract_min, lat_extract_max)}
+                )
+                subset_west = self.gebco_data.sel(
+                    {self.lon_name: slice(lon_extract_west_min, lon_extract_west_max),
+                     self.lat_name: slice(lat_extract_min, lat_extract_max)}
+                )
+                
+                # Concatenar os dois subsets
+                import xarray as xr
+                gebco_subset = xr.concat([subset_east, subset_west], dim=self.lon_name)
+                print(f"  Subsets concatenados")
+            else:
+                # Extração normal
+                lon_extract_min = max(self.lon_min - margin, gebco_lon_min)
+                lon_extract_max = min(self.lon_max + margin, gebco_lon_max)
+                print(f"Limites de extração: lon [{lon_extract_min:.2f}, {lon_extract_max:.2f}], "
+                      f"lat [{lat_extract_min:.2f}, {lat_extract_max:.2f}]")
+                
+                gebco_subset = self.gebco_data.sel(
+                    {self.lon_name: slice(lon_extract_min, lon_extract_max),
+                     self.lat_name: slice(lat_extract_min, lat_extract_max)}
+                )
             
             print(f"Subset extraído: {dict(gebco_subset.sizes)}")
             
@@ -288,27 +326,52 @@ class BathymetryGridGenerator:
             gebco_lats = gebco_subset[self.lat_name].values
             gebco_elevation = gebco_subset[self.elev_name].values
             
-            # Para grades globais ou próximas aos limites, adicionar wrap-around em longitude
-            need_wrap = (self.lon_min <= gebco_lon_min + 0.5 or 
-                        self.lon_max >= gebco_lon_max - 0.5)
+            # Verificar se a grade cruza a linha de data (±180°)
+            crosses_dateline = self.lon_max < self.lon_min
+            near_dateline = (abs(self.lon_min - gebco_lon_min) < 1.0 or 
+                            abs(self.lon_max - gebco_lon_max) < 1.0 or
+                            abs(self.lon_min + 180) < 1.0 or 
+                            abs(self.lon_max - 180) < 1.0)
+            
+            need_wrap = crosses_dateline or near_dateline
             
             if need_wrap:
-                print("Aplicando wrap-around em longitude para grade global...")
-                # Duplicar bordas da longitude para criar continuidade
-                gebco_lons_wrap = np.concatenate([
-                    gebco_lons[:1] - 360,  # Borda esquerda deslocada
-                    gebco_lons,
-                    gebco_lons[-1:] + 360  # Borda direita deslocada
-                ])
-                gebco_elevation_wrap = np.concatenate([
-                    gebco_elevation[:, :1],   # Coluna esquerda
-                    gebco_elevation,
-                    gebco_elevation[:, -1:]   # Coluna direita
-                ], axis=1)
+                print("Aplicando wrap-around em longitude (grade cruza ou está próxima de ±180°)...")
                 
-                gebco_lons = gebco_lons_wrap
-                gebco_elevation = gebco_elevation_wrap
-                print(f"  Longitude expandida: {len(gebco_lons)} pontos")
+                # Para grades que cruzam ±180°, converter longitudes negativas para >180
+                # Ex: [-180, -179, ..., 178, 179, 180] → [-180, -179, ..., 178, 179, 180, 181, 182, ...]
+                # Ou melhor: [0, 1, ..., 178, 179, 180, 181, ..., 359]
+                if crosses_dateline:
+                    # Converter longitudes negativas para range 180-360
+                    gebco_lons = np.where(gebco_lons < 0, gebco_lons + 360, gebco_lons)
+                    print(f"  Longitudes convertidas para intervalo contínuo")
+                
+                # Adicionar bordas para periodicidade
+                if len(gebco_lons) > 0:
+                    gebco_lons_wrap = np.concatenate([
+                        gebco_lons[:1] - 360,  # Borda esquerda
+                        gebco_lons,
+                        gebco_lons[-1:] + 360  # Borda direita
+                    ])
+                    gebco_elevation_wrap = np.concatenate([
+                        gebco_elevation[:, :1],
+                        gebco_elevation,
+                        gebco_elevation[:, -1:]
+                    ], axis=1)
+                    
+                    gebco_lons = gebco_lons_wrap
+                    gebco_elevation = gebco_elevation_wrap
+                    print(f"  Longitude expandida: {len(gebco_lons)} pontos")
+                    print(f"  Range: [{gebco_lons.min():.2f}, {gebco_lons.max():.2f}]°")
+            
+            # Converter longitudes da grade para o mesmo sistema do GEBCO
+            grid_lons_for_interp = self.grid_lons.copy()
+            if crosses_dateline:
+                # Converter longitudes negativas da grade para >180
+                grid_lons_for_interp = np.where(grid_lons_for_interp < 0, 
+                                                grid_lons_for_interp + 360, 
+                                                grid_lons_for_interp)
+                print(f"  Longitudes da grade convertidas para interpolação")
             
             # Criar interpolador
             print("Criando interpolador...")
@@ -320,13 +383,13 @@ class BathymetryGridGenerator:
                 fill_value=0
             )
             
-            # Interpolar
+            # Interpolar (usar grid_lons_for_interp ao invés de self.grid_lons)
             if parallel and self.n_workers > 1:
                 print(f"Interpolando em paralelo usando {self.n_workers} workers...")
-                elevation_interp = self._interpolate_parallel(interpolator)
+                elevation_interp = self._interpolate_parallel(interpolator, grid_lons_for_interp)
             else:
                 print("Interpolando...")
-                elevation_interp = self._interpolate_serial(interpolator)
+                elevation_interp = self._interpolate_serial(interpolator, grid_lons_for_interp)
             
             # Converter elevação para profundidade (inverter sinal para oceano)
             self.depth_grid = np.where(elevation_interp < 0, -elevation_interp, 0)
@@ -355,32 +418,39 @@ class BathymetryGridGenerator:
             return False
     
     
-    def _interpolate_serial(self, interpolator):
+    def _interpolate_serial(self, interpolator, grid_lons=None):
         """
         Interpolação serial (sem paralelização).
         
         Parameters:
             interpolator: Interpolador RegularGridInterpolator
+            grid_lons: Array de longitudes (se None, usa self.grid_lons)
         
         Returns:
             np.array: Dados interpolados
         """
-        lon_mesh, lat_mesh = np.meshgrid(self.grid_lons, self.grid_lats)
+        if grid_lons is None:
+            grid_lons = self.grid_lons
+        lon_mesh, lat_mesh = np.meshgrid(grid_lons, self.grid_lats)
         points = np.column_stack([lat_mesh.ravel(), lon_mesh.ravel()])
         elevation_interp = interpolator(points)
         return elevation_interp.reshape(lon_mesh.shape)
     
     
-    def _interpolate_parallel(self, interpolator):
+    def _interpolate_parallel(self, interpolator, grid_lons=None):
         """
         Interpolação paralela dividindo por linhas de latitude.
         
         Parameters:
             interpolator: Interpolador RegularGridInterpolator
+            grid_lons: Array de longitudes (se None, usa self.grid_lons)
         
         Returns:
             np.array: Dados interpolados
         """
+        if grid_lons is None:
+            grid_lons = self.grid_lons
+            
         n_lats = len(self.grid_lats)
         
         # Dividir latitudes em chunks para processamento paralelo
@@ -389,10 +459,10 @@ class BathymetryGridGenerator:
         
         for i in range(0, n_lats, chunk_size):
             lat_indices = range(i, min(i + chunk_size, n_lats))
-            chunks.append((lat_indices, interpolator, self.grid_lons, self.grid_lats))
+            chunks.append((lat_indices, interpolator, grid_lons, self.grid_lats))
         
         # Processar chunks em paralelo
-        elevation_interp = np.zeros((n_lats, len(self.grid_lons)))
+        elevation_interp = np.zeros((n_lats, len(grid_lons)))
         
         with Pool(processes=self.n_workers) as pool:
             results = pool.map(self._interpolate_chunk, chunks)
